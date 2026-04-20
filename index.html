@@ -25,6 +25,14 @@
             .print\:m-0 { margin: 0 !important; }
             .print\:shadow-none { box-shadow: none !important; }
             .print\:max-w-none { max-width: none !important; }
+            .print\:w-full { width: 100% !important; }
+            /* 印刷時に強制的に2列にするための独自クラス */
+            .print-grid-2 {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                column-gap: 2rem !important;
+                row-gap: 1.5rem !important;
+            }
         }
         /* スクロールバーのカスタマイズ */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -818,7 +826,7 @@
                             </div>
 
                             {problems.length > 0 ? (
-                                <div className="grid gap-x-8 sm:gap-x-12 md:gap-x-16 gap-y-8 sm:gap-y-10 grid-cols-1 md:grid-cols-2">
+                                <div className="grid gap-x-8 sm:gap-x-12 md:gap-x-16 gap-y-8 sm:gap-y-10 grid-cols-1 md:grid-cols-2 print:grid-cols-2">
                                     {problems.map((p, i) => {
                                         const isFillInTheBlank = p.type === 'fillInTheBlank';
                                         return (
