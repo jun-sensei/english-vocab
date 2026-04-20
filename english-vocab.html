@@ -153,7 +153,7 @@
 
             const generate = () => {
                 if (selectedUnits.length === 0) {
-                    setError('1つ以上のUnitを選択してください。');
+                    setError('1つ以上の出題範囲を選択してください。');
                     setProblems([]);
                     return;
                 }
@@ -170,10 +170,8 @@
                     });
                 });
 
-                // 重複排除のためにシャッフル
+                // シャッフルしてランダム抽出
                 wordPool = shuffle(wordPool);
-
-                // 要求された問題数がプールより多い場合は調整
                 const actualCount = Math.min(count, wordPool.length);
                 const selectedWords = wordPool.slice(0, actualCount);
 
@@ -227,42 +225,42 @@
 
                                 {/* 単元選択 */}
                                 <div>
-                                    <div className="flex justify-between items-end mb-2">
+                                    <div className="flex justify-between items-end mb-2 border-b border-gray-300 pb-2">
                                         <label className="block text-sm font-bold text-gray-700">出題範囲</label>
-                                        <button onClick={toggleAll} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                        <button onClick={toggleAll} className="text-xs text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-2 py-1 rounded">
                                             {selectedUnits.length === totalUnitsCount ? 'すべて解除' : 'すべて選択'}
                                         </button>
                                     </div>
                                     
-                                    <div className="space-y-3">
+                                    <div className="space-y-4 mt-3">
                                         {wordDictionary.map((group, idx) => {
                                             const groupIds = group.items.map(i => i.id);
                                             const isAllGroupSelected = groupIds.every(id => selectedUnits.includes(id));
                                             return (
                                             <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                                <div className="flex justify-between items-end mb-2 border-b pb-1">
-                                                    <h3 className="text-xs font-bold text-gray-500">{group.grade}</h3>
-                                                    <button onClick={() => toggleGroup(groupIds)} className="text-[10px] text-blue-500 hover:text-blue-700">
+                                                <div className="flex justify-between items-center mb-2 border-b border-gray-200 pb-1.5">
+                                                    <h3 className="text-xs font-bold text-gray-600">{group.grade}</h3>
+                                                    <button onClick={() => toggleGroup(groupIds)} className="text-[11px] text-blue-500 hover:text-blue-700 font-medium">
                                                         {isAllGroupSelected ? 'この学年を解除' : 'この学年をすべて選択'}
                                                     </button>
                                                 </div>
-                                                <div className="flex flex-col gap-1">
+                                                <div className="flex flex-col gap-1 mt-2">
                                                     {group.items.map(u => (
-                                                        <label key={u.id} className="flex items-center p-1.5 rounded hover:bg-gray-200 cursor-pointer transition-colors">
+                                                        <label key={u.id} className={`flex items-center p-1.5 rounded cursor-pointer transition-colors ${selectedUnits.includes(u.id) ? 'bg-blue-100 text-blue-800 font-semibold' : 'hover:bg-gray-200 text-gray-700 font-medium'}`}>
                                                             <input 
                                                                 type="checkbox" 
                                                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                                                 checked={selectedUnits.includes(u.id)}
                                                                 onChange={() => toggleUnit(u.id)}
                                                             />
-                                                            <span className="ml-2 text-sm text-gray-700 font-medium">{u.name}</span>
+                                                            <span className="ml-2 text-sm">{u.name}</span>
                                                         </label>
                                                     ))}
                                                 </div>
                                             </div>
                                         )})}
                                     </div>
-                                    {error && <p className="text-red-500 text-xs mt-2 font-bold">{error}</p>}
+                                    {error && <p className="text-red-500 text-xs mt-3 font-bold">{error}</p>}
                                 </div>
 
                                 {/* 出題形式と問題数 */}
