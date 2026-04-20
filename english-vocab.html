@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEW HORIZON 英単語 小テスト作成ツール</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* 印刷時の設定 */
+        @media print {
+            body { background-color: white; }
+            .print\:hidden { display: none !important; }
+            .print\:block { display: block !important; }
+            .print\:p-0 { padding: 0 !important; }
+            .print\:m-0 { margin: 0 !important; }
+            .print\:shadow-none { box-shadow: none !important; }
+            .print\:max-w-none { max-width: none !important; }
+        }
+        /* スクロールバーのカスタマイズ */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Icons (Inline SVG) ---
+        const PrinterIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        );
+        const RefreshIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+        );
+        const EyeIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        );
+        const EyeOffIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+        );
+        const BackIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        );
+
+        // 配列シャッフル関数
+        const shuffle = (array) => {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        };
+
+        // --- Word Dictionary (NEW HORIZON base) ---
+        const wordDictionary = [
+            {
+                grade: '中学1年',
+                items: [
+                    { id: 'j1-u0', name: 'Unit 0', words: [{en: 'hello', ja: 'こんにちは'}, {en: 'name', ja: '名前'}, {en: 'tennis', ja: 'テニス'}, {en: 'meet', ja: '会う'}, {en: 'like', ja: '好む'}, {en: 'good', ja: 'よい'}, {en: 'morning', ja: '朝、午前'}] },
+                    { id: 'j1-u1', name: 'Unit 1 (Read & Think含む)', words: [{en: 'call', ja: '呼ぶ'}, {en: 'Japanese', ja: '日本の'}, {en: 'club', ja: 'クラブ'}, {en: 'join', ja: '参加する'}, {en: 'everyone', ja: 'みなさん'}, {en: 'sweet', ja: '甘いもの'}, {en: 'love', ja: '大好きである'}, {en: 'friend', ja: '友達'}, {en: 'often', ja: 'しばしば'}, {en: 'watch', ja: '見る'}, {en: 'art', ja: '美術'}, {en: 'number', ja: '数'}, {en: 'four', ja: '4'}] },
+                    { id: 'j1-u2', name: 'Unit 2 (Read & Think含む)', words: [{en: 'class', ja: 'クラス'}, {en: 'English', ja: '英語'}, {en: 'teacher', ja: '先生'}, {en: 'team', ja: 'チーム'}, {en: 'new', ja: '新しい'}, {en: 'cool', ja: 'かっこいい'}, {en: 'food', ja: '食べ物'}, {en: 'make', ja: '作る'}, {en: 'parents', ja: '両親'}, {en: 'read', ja: '読む'}, {en: 'see', ja: '会う、見る'}, {en: 'bird', ja: '鳥'}, {en: 'welcome', ja: '歓迎する'}] },
+                    { id: 'j1-u3', name: 'Unit 3 (Read & Think含む)', words: [{en: 'family', ja: '家族'}, {en: 'kind', ja: '種類'}, {en: 'interesting', ja: 'おもしろい'}, {en: 'character', ja: 'キャラクター'}, {en: 'favorite', ja: 'お気に入りの'}, {en: 'study', ja: '勉強する'}, {en: 'walk', ja: '歩く'}, {en: 'live', ja: '住む'}, {en: 'practice', ja: '練習する'}, {en: 'hard', ja: '一生懸命に'}, {en: 'win', ja: '勝つ'}, {en: 'where', ja: 'どこ'}, {en: 'game', ja: '試合'}, {en: 'next', ja: '次の'}] },
+                    { id: 'j1-u4', name: 'Unit 4 (Read & Think含む)', words: [{en: 'animal', ja: '動物'}, {en: 'visit', ja: '訪れる'}, {en: 'how', ja: 'どのように'}, {en: 'many', ja: 'たくさんの'}, {en: 'really', ja: '本当に'}, {en: 'someday', ja: 'いつか'}, {en: 'time', ja: '時間'}, {en: 'sport', ja: 'スポーツ'}, {en: 'look', ja: '見る'}, {en: 'right', ja: '右'}, {en: 'front', ja: '前'}, {en: 'worry', ja: '心配する'}, {en: 'yourself', ja: 'あなた自身'}] },
+                    { id: 'j1-u5', name: 'Unit 5 (Read & Think含む)', words: [{en: 'beautiful', ja: '美しい'}, {en: 'brother', ja: '兄、弟'}, {en: 'local', ja: '地元の'}, {en: 'work', ja: '働く'}, {en: 'nature', ja: '自然'}, {en: 'write', ja: '書く'}, {en: 'know', ja: '知っている'}, {en: 'popular', ja: '人気のある'}, {en: 'dish', ja: '料理'}, {en: 'wonderful', ja: 'すばらしい'}, {en: 'restaurant', ja: 'レストラン'}, {en: 'weekend', ja: '週末'}, {en: 'sometimes', ja: '時々'}] },
+                    { id: 'j1-u6', name: 'Unit 6 (Read & Think含む)', words: [{en: 'show', ja: '見せる'}, {en: 'everything', ja: 'すべてのこと'}, {en: 'together', ja: '一緒に'}, {en: 'ticket', ja: 'チケット'}, {en: 'whose', ja: 'だれの'}, {en: 'yours', ja: 'あなたのもの'}, {en: 'wait', ja: '待つ'}, {en: 'mine', ja: '私のもの'}, {en: 'minute', ja: '分'}, {en: 'start', ja: '始まる'}, {en: 'history', ja: '歴史'}, {en: 'still', ja: 'まだ'}, {en: 'clothes', ja: '服'}, {en: 'towel', ja: 'タオル'}] },
+                    { id: 'j1-u7', name: 'Unit 7 (Read & Think含む)', words: [{en: 'plan', ja: '計画'}, {en: 'free', ja: '暇な'}, {en: 'mean', ja: '意味する'}, {en: 'tomorrow', ja: '明日'}, {en: 'talk', ja: '話す'}, {en: 'busy', ja: '忙しい'}, {en: 'appear', ja: '現れる'}, {en: 'take', ja: '乗る、連れて行く'}, {en: 'home', ja: '家'}, {en: 'people', ja: '人々'}, {en: 'place', ja: '場所'}, {en: 'buy', ja: '買う'}, {en: 'welcome', ja: '歓迎する'}, {en: 'excuse', ja: '許す'}, {en: 'late', ja: '遅れる'}, {en: 'travel', ja: '旅行する'}] },
+                    { id: 'j1-u8', name: 'Unit 8 (Read & Think含む)', words: [{en: 'child', ja: '子ども'}, {en: 'country', ja: '国'}, {en: 'always', ja: 'いつも'}, {en: 'try', ja: '試す'}, {en: 'become', ja: 'なる'}, {en: 'teach', ja: '教える'}, {en: 'volunteer', ja: 'ボランティア'}, {en: 'best', ja: '最も良い'}, {en: 'soup', ja: 'スープ'}, {en: 'paper', ja: '紙'}, {en: 'need', ja: '必要とする'}, {en: 'river', ja: '川'}, {en: 'far', ja: '遠い'}, {en: 'build', ja: '建てる'}, {en: 'money', ja: 'お金'}, {en: 'group', ja: 'グループ'}, {en: 'collect', ja: '集める'}, {en: 'clean', ja: 'きれいにする'}] },
+                    { id: 'j1-u9', name: 'Unit 9 (Read & Think含む)', words: [{en: 'during', ja: '〜の間に'}, {en: 'stay', ja: '滞在する'}, {en: 'last', ja: '最後の、この前の'}, {en: 'meet', ja: '会う'}, {en: 'saw', ja: '見た (seeの過去形)'}, {en: 'back', ja: '戻って'}, {en: 'vacation', ja: '休暇'}, {en: 'mountain', ja: '山'}, {en: 'went', ja: '行った (goの過去形)'}, {en: 'traditional', ja: '伝統的な'}, {en: 'special', ja: '特別な'}, {en: 'bought', ja: '買った (buyの過去形)'}, {en: 'read', ja: '読んだ (readの過去形)'}, {en: 'said', ja: '言った (sayの過去形)'}, {en: 'came', ja: '来た (comeの過去形)'}, {en: 'spend', ja: '過ごす'}, {en: 'wish', ja: '願う'}] },
+                    { id: 'j1-u10', name: 'Unit 10 (Read & Think含む)', words: [{en: 'win', ja: '勝つ'}, {en: 'realize', ja: '気付く'}, {en: 'practice', ja: '練習する'}, {en: 'place', ja: '場所'}, {en: 'remember', ja: '思い出す'}, {en: 'contest', ja: 'コンテスト'}, {en: 'anyone', ja: 'だれか'}, {en: 'memory', ja: '記憶'}, {en: 'best', ja: '一番'}, {en: 'break', ja: '休憩'}, {en: 'yesterday', ja: '昨日'}, {en: 'heart', ja: '心'}, {en: 'fast', ja: '速く'}, {en: 'way', ja: '道、方法'}, {en: 'trip', ja: '旅行'}, {en: 'event', ja: 'イベント'}] },
+                    { id: 'j1-ex', name: "Let's Read / Stage Activity 等", words: [{en: 'later', ja: '後で'}, {en: 'alone', ja: 'ひとりで'}, {en: 'think', ja: '考える'}, {en: 'die', ja: '死ぬ'}, {en: 'receive', ja: '受け取る'}, {en: 'heard', ja: '聞いた'}, {en: 'leave', ja: '出発する、去る'}, {en: 'someone', ja: '誰か'}, {en: 'himself', ja: '彼自身'}, {en: 'bring', ja: '持ってくる'}, {en: 'take', ja: '持っていく'}, {en: 'door', ja: 'ドア'}, {en: 'through', ja: '〜を通って'}, {en: 'into', ja: '〜の中へ'}, {en: 'ground', ja: '地面'}, {en: 'drop', ja: '落ちる'}, {en: 'subject', ja: '科目'}, {en: 'famous', ja: '有名な'}, {en: 'favorite', ja: 'お気に入りの'}, {en: 'movie', ja: '映画'}] }
+                ]
+            },
+            {
+                grade: '中学2年',
+                items: [
+                    { id: 'j2-u0', name: 'Unit 0', words: [{en: 'experience', ja: '経験'}, {en: 'same', ja: '同じ'}, {en: 'actually', ja: '実は'}, {en: 'noodle', ja: 'めん'}, {en: 'instant', ja: '即席の'}] },
+                    { id: 'j2-u1', name: 'Unit 1 (Read & Think含む)', words: [{en: 'holiday', ja: '休日'}, {en: 'around', ja: '〜のまわりに'}, {en: 'soon', ja: 'すぐに'}, {en: 'arrive', ja: '到着する'}, {en: 'leave', ja: '去る'}, {en: 'excited', ja: '興奮した'}, {en: 'foreign', ja: '外国の'}, {en: 'language', ja: '言語'}, {en: 'shop', ja: '店'}, {en: 'find', ja: '見つける'}, {en: 'example', ja: '例'}, {en: 'different', ja: '異なる'}, {en: 'culture', ja: '文化'}, {en: 'area', ja: '地域'}] },
+                    { id: 'j2-u2', name: 'Unit 2 (Read & Think含む)', words: [{en: 'culture', ja: '文化'}, {en: 'area', ja: '地域'}, {en: 'speech', ja: 'スピーチ'}, {en: 'butter', ja: 'バター'}, {en: 'add', ja: '加える'}, {en: 'change', ja: '変える'}, {en: 'create', ja: '創造する'}, {en: 'climate', ja: '気候'}, {en: 'use', ja: '使う'}, {en: 'company', ja: '会社'}, {en: 'small', ja: '小さい'}, {en: 'less', ja: 'より少なく'}, {en: 'hour', ja: '時間'}] },
+                    { id: 'j2-u3', name: 'Unit 3 (Read & Think含む)', words: [{en: 'information', ja: '情報'}, {en: 'international', ja: '国際的な'}, {en: 'choose', ja: '選ぶ'}, {en: 'difficult', ja: '難しい'}, {en: 'necessary', ja: '必要な'}, {en: 'understand', ja: '理解する'}, {en: 'story', ja: '物語'}, {en: 'learn', ja: '学ぶ'}, {en: 'start', ja: '始める'}, {en: 'important', ja: '重要な'}, {en: 'taught', ja: '教えた (teachの過去形)'}, {en: 'smile', ja: 'ほほえむ'}, {en: 'glad', ja: 'うれしい'}, {en: 'now', ja: '今'}] },
+                    { id: 'j2-u4', name: 'Unit 4 (Read & Think含む)', words: [{en: 'member', ja: 'メンバー'}, {en: 'guest', ja: '客'}, {en: 'ask', ja: '尋ねる'}, {en: 'rule', ja: 'ルール'}, {en: 'follow', ja: '従う'}, {en: 'save', ja: '救う'}, {en: 'prepare', ja: '準備する'}, {en: 'hard', ja: '一生懸命に'}, {en: 'done', ja: '終わった'}, {en: 'finish', ja: '終える'}, {en: 'hurt', ja: '傷つける'}, {en: 'much', ja: 'たくさんの'}, {en: 'should', ja: '〜すべき'}, {en: 'feeling', ja: '感情'}, {en: 'after', ja: '〜の後に'}, {en: 'carefully', ja: '注意深く'}, {en: 'other', ja: '他の'}, {en: 'wish', ja: '願う'}] },
+                    { id: 'j2-u5', name: 'Unit 5 (Read & Think含む)', words: [{en: 'bottle', ja: 'ボトル'}, {en: 'product', ja: '製品'}, {en: 'touch', ja: '触れる'}, {en: 'over', ja: '〜を超えて'}, {en: 'paper', ja: '紙'}, {en: 'staff', ja: 'スタッフ'}, {en: 'baby', ja: '赤ん坊'}, {en: 'useful', ja: '役に立つ'}, {en: 'sure', ja: '確信して'}, {en: 'young', ja: '若い'}] },
+                    { id: 'j2-u6', name: 'Unit 6 (Read & Think含む)', words: [{en: 'answer', ja: '答える'}, {en: 'most', ja: 'ほとんどの'}, {en: 'quiz', ja: 'クイズ'}, {en: 'skill', ja: 'スキル'}, {en: 'survey', ja: '調査'}, {en: 'court', ja: 'コート'}, {en: 'strategy', ja: '戦略'}, {en: 'souvenir', ja: 'お土産'}, {en: 'letter', ja: '文字'}, {en: 'topic', ja: '話題'}, {en: 'data', ja: 'データ'}, {en: 'comment', ja: 'コメント'}, {en: 'feedback', ja: 'フィードバック'}, {en: 'contact', ja: '連絡'}, {en: 'clear', ja: '明確な'}, {en: 'best', ja: '一番良い'}, {en: 'half', ja: '半分'}, {en: 'find', ja: '見つける'}, {en: 'work', ja: '働く'}, {en: 'spoke', ja: '話した (speakの過去形)'}] },
+                    { id: 'j2-u7', name: 'Unit 7 (Read & Think含む)', words: [{en: 'decide', ja: '決める'}, {en: 'natural', ja: '自然の'}, {en: 'site', ja: '敷地、遺跡'}, {en: 'conference', ja: '会議'}, {en: 'cultural', ja: '文化的な'}, {en: 'mixed', ja: '混ざった'}, {en: 'selection', ja: '選択'}, {en: 'standard', ja: '基準'}, {en: 'list', ja: 'リスト'}, {en: 'forever', ja: '永遠に'}, {en: 'path', ja: '小道'}, {en: 'cleanup', ja: '掃除'}, {en: 'face', ja: '直面する'}, {en: 'built', ja: '建てられた'}, {en: 'climb', ja: '登る'}, {en: 'seen', ja: '見られた'}] },
+                    { id: 'j2-ex', name: "Let's Read / Stage Activity 等", words: [{en: 'pay', ja: '支払う'}, {en: 'before', ja: '〜の前に'}, {en: 'better', ja: 'より良い'}, {en: 'wonder', ja: '〜かなと思う'}, {en: 'hope', ja: '望む'}, {en: 'smile', ja: '微笑む'}, {en: 'away', ja: '離れて'}, {en: 'sent', ja: '送った'}, {en: 'woke', ja: '目覚めた'}, {en: 'afraid', ja: '恐れて'}, {en: 'inside', ja: '内側に'}, {en: 'letter', ja: '手紙'}, {en: 'almost', ja: 'ほとんど'}, {en: 'field', ja: '野原'}, {en: 'return', ja: '戻る'}, {en: 'alone', ja: 'ひとりで'}, {en: 'camp', ja: 'キャンプ'}] }
+                ]
+            },
+            {
+                grade: '中学3年',
+                items: [
+                    { id: 'j3-u0', name: 'Unit 0', words: [{en: 'musical', ja: 'ミュージカル'}, {en: 'finally', ja: 'ついに'}, {en: 'side', ja: '側面'}, {en: 'discover', ja: '発見する'}, {en: 'actor', ja: '俳優'}] },
+                    { id: 'j3-u1', name: 'Unit 1 (Read & Think含む)', words: [{en: 'match', ja: '試合'}, {en: 'make', ja: '作る'}, {en: 'drawn', ja: '描かれた'}, {en: 'delicate', ja: '繊細な'}, {en: 'adult', ja: '大人'}, {en: 'quality', ja: '質'}, {en: 'adventure', ja: '冒険'}, {en: 'global', ja: '世界的な'}, {en: 'addition', ja: '追加'}, {en: 'drawing', ja: '描画'}, {en: 'more', ja: 'より多く'}, {en: 'around', ja: '〜の周りに'}, {en: 'said', ja: '言った'}] },
+                    { id: 'j3-u2', name: 'Unit 2 (Read & Think含む)', words: [{en: 'introduce', ja: '紹介する'}, {en: 'become', ja: 'なる'}, {en: 'use', ja: '使う'}, {en: 'small', ja: '小さい'}, {en: 'less', ja: 'より少なく'}, {en: 'company', ja: '会社'}, {en: 'hour', ja: '時間'}, {en: 'popular', ja: '人気のある'}, {en: 'impact', ja: '影響'}, {en: 'since', ja: '〜以来'}, {en: 'planet', ja: '惑星'}, {en: 'worker', ja: '労働者'}, {en: 'fair', ja: '公平な'}, {en: 'prohibit', ja: '禁止する'}] },
+                    { id: 'j3-u3', name: 'Unit 3 (Read & Think含む)', words: [{en: 'human', ja: '人間'}, {en: 'change', ja: '変化'}, {en: 'trouble', ja: 'トラブル'}, {en: 'article', ja: '記事'}, {en: 'heard', ja: '聞いた'}, {en: 'century', ja: '世紀'}, {en: 'end', ja: '終わり'}, {en: 'help', ja: '助ける'}, {en: 'research', ja: '研究'}, {en: 'continue', ja: '続ける'}, {en: 'reach', ja: '到着する'}, {en: 'action', ja: '行動'}] },
+                    { id: 'j3-u4', name: 'Unit 4 (Read & Think含む)', words: [{en: 'call', ja: '呼ぶ'}, {en: 'number', ja: '番号'}, {en: 'store', ja: '店'}, {en: 'fire', ja: '火事'}, {en: 'case', ja: '場合'}, {en: 'news', ja: 'ニュース'}, {en: 'corner', ja: '角'}, {en: 'sudden', ja: '突然の'}, {en: 'support', ja: '支持する'}, {en: 'building', ja: '建物'}, {en: 'sell', ja: '売る'}, {en: 'between', ja: '〜の間に'}, {en: 'rode', ja: '乗った (rideの過去形)'}, {en: 'bridge', ja: '橋'}, {en: 'caught', ja: '捕まえた (catchの過去形)'}] },
+                    { id: 'j3-u5', name: 'Unit 5 (Read & Think含む)', words: [{en: 'print', ja: '印刷する'}, {en: 'note', ja: 'メモ'}, {en: 'greatly', ja: '大いに'}, {en: 'national', ja: '国家の'}, {en: 'leader', ja: '指導者'}, {en: 'image', ja: '画像'}, {en: 'person', ja: '人'}, {en: 'rule', ja: '規則'}, {en: 'law', ja: '法律'}, {en: 'stand', ja: '立つ'}, {en: 'expensive', ja: '高価な'}, {en: 'produce', ja: '生産する'}, {en: 'thousand', ja: '千'}, {en: 'factory', ja: '工場'}, {en: 'export', ja: '輸出する'}, {en: 'choice', ja: '選択'}] },
+                    { id: 'j3-u6', name: 'Unit 6 (Read & Think含む)', words: [{en: 'run', ja: '走る'}, {en: 'wish', ja: '願う'}, {en: 'felt', ja: '感じた'}, {en: 'abroad', ja: '外国へ'}, {en: 'open', ja: '開く'}, {en: 'daughter', ja: '娘'}, {en: 'imagine', ja: '想像する'}, {en: 'son', ja: '息子'}, {en: 'another', ja: '別の'}, {en: 'ready', ja: '準備ができて'}, {en: 'through', ja: '〜を通って'}, {en: 'most', ja: 'ほとんど'}, {en: 'sold', ja: '売った (sellの過去形)'}] },
+                    { id: 'j3-ex', name: "Let's Read / Stage Activity 等", words: [{en: 'happen', ja: '起こる'}, {en: 'out', ja: '外へ'}, {en: 'cut', ja: '切る'}, {en: 'wind', ja: '風'}, {en: 'power', ja: '力'}, {en: 'believe', ja: '信じる'}, {en: 'fun', ja: '楽しい'}, {en: 'line', ja: '線'}, {en: 'outside', ja: '外側'}, {en: 'color', ja: '色'}, {en: 'piece', ja: '部分'}, {en: 'instead', ja: '代わりに'}, {en: 'fold', ja: '折る'}, {en: 'item', ja: '品物'}, {en: 'cloth', ja: '布'}, {en: 'resource', ja: '資源'}, {en: 'square', ja: '正方形'}] }
+                ]
+            }
+        ];
+
+        // --- Main App ---
+        function App() {
+            const [selectedUnits, setSelectedUnits] = useState(['j1-u1']);
+            const [count, setCount] = useState(10);
+            const [questionType, setQuestionType] = useState('random'); // 'enToJa', 'jaToEn', 'random'
+            const [problems, setProblems] = useState([]);
+            const [showAnswers, setShowAnswers] = useState(false);
+            const [error, setError] = useState('');
+
+            const toggleUnit = (unitId) => {
+                setError('');
+                setSelectedUnits(prev => {
+                    if (prev.includes(unitId)) return prev.filter(id => id !== unitId);
+                    return [...prev, unitId];
+                });
+            };
+
+            const toggleAll = () => {
+                const allIds = wordDictionary.flatMap(g => g.items.map(i => i.id));
+                if (selectedUnits.length === allIds.length) {
+                    setSelectedUnits([]);
+                } else {
+                    setSelectedUnits(allIds);
+                }
+            };
+
+            const toggleGroup = (groupIds) => {
+                const isAllGroupSelected = groupIds.every(id => selectedUnits.includes(id));
+                if (isAllGroupSelected) {
+                    setSelectedUnits(prev => prev.filter(id => !groupIds.includes(id)));
+                } else {
+                    setSelectedUnits(prev => {
+                        const newSelection = [...prev];
+                        groupIds.forEach(id => {
+                            if (!newSelection.includes(id)) newSelection.push(id);
+                        });
+                        return newSelection;
+                    });
+                }
+            };
+
+            const totalUnitsCount = wordDictionary.flatMap(g => g.items).length;
+
+            const generate = () => {
+                if (selectedUnits.length === 0) {
+                    setError('1つ以上の出題範囲を選択してください。');
+                    setProblems([]);
+                    return;
+                }
+                setError('');
+
+                // 選択されたUnitから単語を収集
+                let wordPool = [];
+                selectedUnits.forEach(unitId => {
+                    wordDictionary.forEach(group => {
+                        const unit = group.items.find(u => u.id === unitId);
+                        if (unit) {
+                            wordPool = wordPool.concat(unit.words);
+                        }
+                    });
+                });
+
+                // シャッフルしてランダム抽出
+                wordPool = shuffle(wordPool);
+                const actualCount = Math.min(count, wordPool.length);
+                const selectedWords = wordPool.slice(0, actualCount);
+
+                const newProblems = selectedWords.map(word => {
+                    let isEnToJa = true;
+                    if (questionType === 'jaToEn') isEnToJa = false;
+                    else if (questionType === 'random') isEnToJa = Math.random() > 0.5;
+
+                    return {
+                        q: isEnToJa ? word.en : word.ja,
+                        a: isEnToJa ? word.ja : word.en,
+                        type: isEnToJa ? 'enToJa' : 'jaToEn'
+                    };
+                });
+
+                setProblems(newProblems);
+                setShowAnswers(false);
+            };
+
+            // 設定変更時に問題を自動生成
+            useEffect(() => {
+                if (selectedUnits.length > 0) {
+                    generate();
+                } else {
+                    setProblems([]);
+                    setError('1つ以上の単元を選択してください。');
+                }
+            }, [selectedUnits, count, questionType]);
+
+            const print = () => window.print();
+
+            const getTestTitle = () => {
+                if (selectedUnits.length === 1) {
+                    const allItems = wordDictionary.flatMap(g => g.items);
+                    return allItems.find(u => u.id === selectedUnits[0])?.name + ' 英単語テスト';
+                }
+                return '英単語 総合復習テスト';
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-sans text-gray-900 print:bg-white print:p-0">
+                    <div className="max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 lg:gap-8 print:block print:max-w-none print:mx-0">
+                        
+                        {/* 左側コントロールパネル (印刷時非表示) */}
+                        <div className="w-full lg:w-[320px] shrink-0 print:hidden">
+                            <div className="bg-white p-5 sm:p-6 rounded-xl shadow-md lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] overflow-y-auto flex flex-col gap-6 custom-scrollbar">
+                                <div>
+                                    <h1 className="text-xl font-bold text-gray-800 mb-1">英単語小テスト作成</h1>
+                                    <p className="text-xs text-gray-500 leading-relaxed">設定を変更すると、右側のプリントにリアルタイムで問題が自動生成されます。</p>
+                                </div>
+
+                                {/* 単元選択 */}
+                                <div>
+                                    <div className="flex justify-between items-end mb-2 border-b border-gray-300 pb-2">
+                                        <label className="block text-sm font-bold text-gray-700">出題範囲</label>
+                                        <button onClick={toggleAll} className="text-xs text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-2 py-1 rounded">
+                                            {selectedUnits.length === totalUnitsCount ? 'すべて解除' : 'すべて選択'}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="space-y-4 mt-3">
+                                        {wordDictionary.map((group, idx) => {
+                                            const groupIds = group.items.map(i => i.id);
+                                            const isAllGroupSelected = groupIds.every(id => selectedUnits.includes(id));
+                                            return (
+                                            <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                                <div className="flex justify-between items-center mb-2 border-b border-gray-200 pb-1.5">
+                                                    <h3 className="text-xs font-bold text-gray-600">{group.grade}</h3>
+                                                    <button onClick={() => toggleGroup(groupIds)} className="text-[11px] text-blue-500 hover:text-blue-700 font-medium">
+                                                        {isAllGroupSelected ? 'この学年を解除' : 'この学年をすべて選択'}
+                                                    </button>
+                                                </div>
+                                                <div className="flex flex-col gap-1 mt-2">
+                                                    {group.items.map(u => (
+                                                        <label key={u.id} className={`flex items-center p-1.5 rounded cursor-pointer transition-colors ${selectedUnits.includes(u.id) ? 'bg-blue-100 text-blue-800 font-semibold' : 'hover:bg-gray-200 text-gray-700 font-medium'}`}>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                checked={selectedUnits.includes(u.id)}
+                                                                onChange={() => toggleUnit(u.id)}
+                                                            />
+                                                            <span className="ml-2 text-sm">{u.name}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )})}
+                                    </div>
+                                    {error && <p className="text-red-500 text-xs mt-3 font-bold">{error}</p>}
+                                </div>
+
+                                {/* 出題形式と問題数 */}
+                                <div className="space-y-4 border-t pt-4 border-gray-100">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">出題形式</label>
+                                        <select 
+                                            value={questionType} 
+                                            onChange={(e) => setQuestionType(e.target.value)}
+                                            className="w-full bg-gray-50 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-2.5 outline-none transition-shadow text-sm font-medium"
+                                        >
+                                            <option value="enToJa">英単語 → 日本語訳</option>
+                                            <option value="jaToEn">日本語訳 → 英単語</option>
+                                            <option value="random">ランダムに出題</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">問題数</label>
+                                        <select 
+                                            value={count} 
+                                            onChange={(e) => setCount(Number(e.target.value))}
+                                            className="w-full bg-gray-50 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-2.5 outline-none transition-shadow text-sm font-medium"
+                                        >
+                                            <option value={10}>10問</option>
+                                            <option value={20}>20問 (約10分)</option>
+                                            <option value={30}>30問</option>
+                                            <option value={50}>50問</option>
+                                        </select>
+                                        <p className="text-[10px] text-gray-400 mt-1">※選択範囲の単語数が少ない場合は、最大単語数で作成されます。</p>
+                                    </div>
+                                </div>
+
+                                {/* アクションボタン */}
+                                <div className="space-y-2.5 border-t pt-4 border-gray-100">
+                                    <button 
+                                        onClick={generate}
+                                        disabled={selectedUnits.length === 0}
+                                        className="w-full flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2.5 px-4 rounded-lg transition-colors text-sm border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <RefreshIcon />
+                                        別の問題を生成
+                                    </button>
+
+                                    <button 
+                                        onClick={() => setShowAnswers(!showAnswers)}
+                                        disabled={selectedUnits.length === 0}
+                                        className="w-full flex items-center justify-center gap-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2.5 px-4 rounded-lg transition-colors text-sm border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {showAnswers ? <EyeOffIcon /> : <EyeIcon />}
+                                        {showAnswers ? '解答を隠す' : '解答を表示'}
+                                    </button>
+
+                                    <button 
+                                        onClick={print}
+                                        disabled={selectedUnits.length === 0}
+                                        className="w-full flex items-center justify-center gap-1.5 bg-gray-800 hover:bg-gray-900 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <PrinterIcon />
+                                        プリントを印刷
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 右側 プリントプレビュー */}
+                        <div className="flex-1 flex justify-center print:block">
+                            <div className="w-full max-w-4xl bg-white p-8 sm:p-12 md:p-16 rounded-xl shadow-md print:shadow-none print:p-0 min-h-[297mm]">
+                                
+                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end border-b-2 border-gray-800 pb-4 mb-8 gap-4">
+                                    <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+                                        {getTestTitle()}
+                                    </h2>
+                                    <div className="flex gap-3 sm:gap-4 text-sm sm:text-base font-medium text-gray-800 shrink-0">
+                                        <div className="border-b border-gray-400 w-12 sm:w-16 text-center pb-1">　年</div>
+                                        <div className="border-b border-gray-400 w-12 sm:w-16 text-center pb-1">　組</div>
+                                        <div className="border-b border-gray-400 w-12 sm:w-16 text-center pb-1">　番</div>
+                                        <div className="border-b border-gray-400 w-24 sm:w-40 pb-1">氏名</div>
+                                    </div>
+                                </div>
+
+                                {problems.length > 0 ? (
+                                    <div className="grid gap-x-8 sm:gap-x-16 md:gap-x-20 gap-y-6 sm:gap-y-8 grid-cols-1 md:grid-cols-2">
+                                        {problems.map((p, i) => (
+                                            <div key={i} className="flex gap-3 sm:gap-4 break-inside-avoid items-center">
+                                                <div className="font-bold text-base sm:text-lg text-gray-800 w-6 sm:w-8 shrink-0 text-right">({i + 1})</div>
+                                                <div className={`w-32 sm:w-40 shrink-0 text-base sm:text-lg font-medium ${p.type === 'enToJa' ? 'font-serif tracking-wide' : ''}`}>
+                                                    {p.q}
+                                                </div>
+                                                <div className="flex-1 border-b border-gray-400 relative h-8">
+                                                    {showAnswers && (
+                                                        <span className={`absolute bottom-0 left-2 text-red-600 font-bold text-base sm:text-lg ${p.type === 'jaToEn' ? 'font-serif tracking-wide' : ''}`}>
+                                                            {p.a}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center h-64 text-gray-400 text-lg">
+                                        {error ? '左のパネルから出題範囲を選択してください。' : '問題を生成しています...'}
+                                    </div>
+                                )}
+                                
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            );
+        }
+
+        // Reactアプリのレンダリング
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
