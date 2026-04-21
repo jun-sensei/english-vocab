@@ -25,13 +25,15 @@
             .print\:m-0 { margin: 0 !important; }
             .print\:shadow-none { box-shadow: none !important; }
             .print\:max-w-none { max-width: none !important; }
-            .print\:w-full { width: 100% !important; }
             /* 印刷時に強制的に2列にするための独自クラス */
             .print-grid-2 {
                 display: grid !important;
-                grid-template-columns: 1fr 1fr !important;
-                column-gap: 2rem !important;
-                row-gap: 1.5rem !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 1.5rem !important;
+            }
+            .break-inside-avoid {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
             }
         }
         /* スクロールバーのカスタマイズ */
@@ -76,208 +78,232 @@
             return array;
         };
 
-        // --- Word Dictionary (NEW HORIZON base with Example Sentences) ---
+        // 英文穴埋め用のテキスト動的生成ヘルパー関数
+        const generateFullEn = (exEnBlank, en) => {
+            if (!exEnBlank || !en) return "";
+            if (exEnBlank.startsWith('___')) {
+                const capitalizedEn = en.charAt(0).toUpperCase() + en.slice(1);
+                return exEnBlank.replace('___', capitalizedEn);
+            }
+            return exEnBlank.replace('___', en);
+        };
+
+        // 日本語文の表示用ヘルパー関数
+        // exJaの中にある [ ] を削除して自然な文として表示する
+        const generateFullJa = (exJa) => {
+            if (!exJa) return "";
+            return exJa.replace(/\[(.*?)\]/g, '$1');
+        };
+
+        // 日本語文の [ ] の中身を ___ に置き換えて出題用の文を生成する
+        const generateBlankJa = (exJa) => {
+            if (!exJa) return "";
+            return exJa.replace(/\[(.*?)\]/g, '___');
+        };
+
+        // --- Word Dictionary ---
+        // exJa の中の [ ] で囲まれた部分が「日本語訳の穴埋め問題」で空欄になります。
         const wordDictionary = [
             {
                 grade: '中学1年',
                 items: [
                     { id: 'j1-u0', name: 'Unit 0', words: [
-                        {en: 'hello', ja: 'こんにちは', exEn: '___, everyone.', exJa: 'こんにちは、みなさん。'}, 
-                        {en: 'name', ja: '名前', exEn: 'My ___ is Ken.', exJa: '私の名前はケンです。'}, 
-                        {en: 'tennis', ja: 'テニス', exEn: 'I play ___.', exJa: '私はテニスをします。'}, 
-                        {en: 'meet', ja: '会う', exEn: 'Nice to ___ you.', exJa: 'あなたに会えて嬉しいです。'}, 
-                        {en: 'like', ja: '好む', exEn: 'I ___ music.', exJa: '私は音楽が好きです。'}, 
-                        {en: 'good', ja: 'よい', exEn: 'He is a ___ student.', exJa: '彼はよい生徒です。'}, 
-                        {en: 'morning', ja: '朝、午前', exEn: 'Good ___.', exJa: 'おはようございます。'}
+                        {en: 'hello', ja: 'こんにちは', exEn: '___, everyone.', exJa: '[こんにちは]、みなさん。'}, 
+                        {en: 'name', ja: '名前', exEn: 'My ___ is Ken.', exJa: '私の[名前]はケンです。'}, 
+                        {en: 'tennis', ja: 'テニス', exEn: 'I play ___.', exJa: '私は[テニス]をします。'}, 
+                        {en: 'meet', ja: '会う', exEn: 'Nice to ___ you.', exJa: 'あなたに[会え]て嬉しいです。'}, 
+                        {en: 'like', ja: '好む', exEn: 'I ___ music.', exJa: '私は音楽が[好きです]。'}, 
+                        {en: 'good', ja: 'よい', exEn: 'He is a ___ student.', exJa: '彼は[よい]生徒です。'}, 
+                        {en: 'morning', ja: '朝、午前', exEn: 'I get up early in the ___.', exJa: '私は[朝]早く起きます。'}
                     ] },
                     { id: 'j1-u1', name: 'Unit 1 (Read & Think含む)', words: [
-                        {en: 'call', ja: '呼ぶ', exEn: 'Please ___ me Ken.', exJa: '私をケンと呼んでください。'}, 
-                        {en: 'Japanese', ja: '日本の', exEn: 'I like ___ food.', exJa: '私は日本の食べ物が好きです。'}, 
-                        {en: 'club', ja: 'クラブ', exEn: 'I am in the tennis ___.', exJa: '私はテニス部に入っています。'}, 
-                        {en: 'join', ja: '参加する', exEn: 'Let\'s ___ the team.', exJa: 'チームに参加しましょう。'}, 
-                        {en: 'everyone', ja: 'みなさん', exEn: 'Hello, ___.', exJa: 'こんにちは、みなさん。'}, 
-                        {en: 'sweet', ja: '甘いもの', exEn: 'I love ___s.', exJa: '私は甘いものが大好きです。'}, 
-                        {en: 'love', ja: '大好きである', exEn: 'I ___ baseball.', exJa: '私は野球が大好きです。'}, 
-                        {en: 'friend', ja: '友達', exEn: 'He is my ___.', exJa: '彼は私の友達です。'}, 
-                        {en: 'often', ja: 'しばしば', exEn: 'I ___ play soccer.', exJa: '私はよくサッカーをします。'}, 
-                        {en: 'watch', ja: '見る', exEn: 'I ___ TV every day.', exJa: '私は毎日テレビを見ます。'}, 
-                        {en: 'art', ja: '美術', exEn: 'I like ___ class.', exJa: '私は美術の授業が好きです。'}, 
-                        {en: 'number', ja: '数', exEn: 'What is your phone ___?', exJa: 'あなたの電話番号は何番ですか。'}, 
-                        {en: 'four', ja: '4', exEn: 'I have ___ books.', exJa: '私は本を4冊持っています。'}
+                        {en: 'call', ja: '呼ぶ', exEn: 'Please ___ me Ken.', exJa: '私をケンと[呼ん]でください。'}, 
+                        {en: 'Japanese', ja: '日本の', exEn: 'I like ___ food.', exJa: '私は[日本の]食べ物が好きです。'}, 
+                        {en: 'club', ja: 'クラブ', exEn: 'I am in the tennis ___.', exJa: '私はテニス[部(クラブ)]に入っています。'}, 
+                        {en: 'join', ja: '参加する', exEn: 'Let\'s ___ the team.', exJa: 'チームに[参加し]ましょう。'}, 
+                        {en: 'everyone', ja: 'みなさん', exEn: 'Hello, ___.', exJa: 'こんにちは、[みなさん]。'}, 
+                        {en: 'sweet', ja: '甘いもの', exEn: 'I love ___s.', exJa: '私は[甘いもの]が大好きです。'}, 
+                        {en: 'love', ja: '大好きである', exEn: 'I ___ baseball.', exJa: '私は野球が[大好きです]。'}, 
+                        {en: 'friend', ja: '友達', exEn: 'He is my ___.', exJa: '彼は私の[友達]です。'}, 
+                        {en: 'often', ja: 'しばしば', exEn: 'I ___ play soccer.', exJa: '私は[よく(しばしば)]サッカーをします。'}, 
+                        {en: 'watch', ja: '見る', exEn: 'I ___ TV every day.', exJa: '私は毎日テレビを[見ます]。'}, 
+                        {en: 'art', ja: '美術', exEn: 'I like ___ class.', exJa: '私は[美術]の授業が好きです。'}, 
+                        {en: 'number', ja: '数', exEn: 'What is your phone ___?', exJa: 'あなたの電話[番号]は何番ですか。'}, 
+                        {en: 'four', ja: '4', exEn: 'I have ___ books.', exJa: '私は本を[4]冊持っています。'}
                     ] },
                     { id: 'j1-u2', name: 'Unit 2 (Read & Think含む)', words: [
-                        {en: 'class', ja: 'クラス', exEn: 'We are in the same ___.', exJa: '私たちは同じクラスです。'}, 
-                        {en: 'English', ja: '英語', exEn: 'I study ___ every day.', exJa: '私は毎日英語を勉強します。'}, 
-                        {en: 'teacher', ja: '先生', exEn: 'He is our math ___.', exJa: '彼は私たちの数学の先生です。'}, 
-                        {en: 'team', ja: 'チーム', exEn: 'She is on the basketball ___.', exJa: '彼女はバスケチームに入っています。'}, 
-                        {en: 'new', ja: '新しい', exEn: 'I have a ___ bike.', exJa: '私は新しい自転車を持っています。'}, 
-                        {en: 'cool', ja: 'かっこいい', exEn: 'That car is ___.', exJa: 'あの車はかっこいいですね。'}, 
-                        {en: 'food', ja: '食べ物', exEn: 'I like Chinese ___.', exJa: '私は中華料理(食べ物)が好きです。'}, 
-                        {en: 'make', ja: '作る', exEn: 'I ___ breakfast.', exJa: '私は朝食を作ります。'}, 
-                        {en: 'parents', ja: '両親', exEn: 'I live with my ___.', exJa: '私は両親と一緒に住んでいます。'}, 
-                        {en: 'read', ja: '読む', exEn: 'I ___ books at night.', exJa: '私は夜に本を読みます。'}, 
-                        {en: 'see', ja: '会う、見る', exEn: 'I can ___ a bird.', exJa: '鳥が見えます。'}, 
-                        {en: 'bird', ja: '鳥', exEn: 'That ___ is beautiful.', exJa: 'あの鳥は美しい。'}, 
-                        {en: 'welcome', ja: '歓迎する', exEn: '___ to Japan.', exJa: '日本へようこそ。'}
+                        {en: 'class', ja: 'クラス', exEn: 'We are in the same ___.', exJa: '私たちは同じ[クラス]です。'}, 
+                        {en: 'English', ja: '英語', exEn: 'I study ___ every day.', exJa: '私は毎日[英語]を勉強します。'}, 
+                        {en: 'teacher', ja: '先生', exEn: 'He is our math ___.', exJa: '彼は私たちの数学の[先生]です。'}, 
+                        {en: 'team', ja: 'チーム', exEn: 'She is on the basketball ___.', exJa: '彼女はバスケ[チーム]に入っています。'}, 
+                        {en: 'new', ja: '新しい', exEn: 'I have a ___ bike.', exJa: '私は[新しい]自転車を持っています。'}, 
+                        {en: 'cool', ja: 'かっこいい', exEn: 'That car is ___.', exJa: 'あの車は[かっこいい]ですね。'}, 
+                        {en: 'food', ja: '食べ物', exEn: 'I like Chinese ___.', exJa: '私は中華料理([食べ物])が好きです。'}, 
+                        {en: 'make', ja: '作る', exEn: 'I ___ breakfast.', exJa: '私は朝食を[作ります]。'}, 
+                        {en: 'parents', ja: '両親', exEn: 'I live with my ___.', exJa: '私は[両親]と一緒に住んでいます。'}, 
+                        {en: 'read', ja: '読む', exEn: 'I ___ books at night.', exJa: '私は夜に本を[読みます]。'}, 
+                        {en: 'see', ja: '会う、見る', exEn: 'I can ___ a bird.', exJa: '鳥が[見えます]。'}, 
+                        {en: 'bird', ja: '鳥', exEn: 'That ___ is beautiful.', exJa: 'あの[鳥]は美しい。'}, 
+                        {en: 'welcome', ja: '歓迎する', exEn: '___ to Japan.', exJa: '日本へ[ようこそ(歓迎します)]。'}
                     ] },
                     { id: 'j1-u3', name: 'Unit 3 (Read & Think含む)', words: [
-                        {en: 'family', ja: '家族', exEn: 'I love my ___.', exJa: '私は家族を愛しています。'}, 
-                        {en: 'kind', ja: '種類', exEn: 'What ___ of music do you like?', exJa: 'どんな種類の音楽が好きですか。'}, 
-                        {en: 'interesting', ja: 'おもしろい', exEn: 'This book is very ___.', exJa: 'この本はとても面白いです。'}, 
-                        {en: 'character', ja: 'キャラクター', exEn: 'Who is your favorite ___?', exJa: 'お気に入りのキャラクターは誰ですか。'}, 
-                        {en: 'favorite', ja: 'お気に入りの', exEn: 'My ___ subject is math.', exJa: '私のお気に入りの科目は数学です。'}, 
-                        {en: 'study', ja: '勉強する', exEn: 'I ___ hard every day.', exJa: '私は毎日一生懸命勉強します。'}, 
-                        {en: 'walk', ja: '歩く', exEn: 'I ___ to school.', exJa: '私は学校へ歩いていきます。'}, 
-                        {en: 'live', ja: '住む', exEn: 'I ___ in Tokyo.', exJa: '私は東京に住んでいます。'}, 
-                        {en: 'practice', ja: '練習する', exEn: 'I ___ the piano.', exJa: '私はピアノを練習します。'}, 
-                        {en: 'hard', ja: '一生懸命に', exEn: 'She studies very ___.', exJa: '彼女はとても一生懸命に勉強します。'}, 
-                        {en: 'win', ja: '勝つ', exEn: 'We want to ___ the game.', exJa: '私たちは試合に勝ちたいです。'}, 
-                        {en: 'where', ja: 'どこ', exEn: '___ do you live?', exJa: 'あなたはどこに住んでいますか。'}, 
-                        {en: 'game', ja: '試合', exEn: 'I watched a soccer ___.', exJa: '私はサッカーの試合を見ました。'}, 
-                        {en: 'next', ja: '次の', exEn: 'See you ___ week.', exJa: 'また来週。'}
+                        {en: 'family', ja: '家族', exEn: 'I love my ___.', exJa: '私は[家族]を愛しています。'}, 
+                        {en: 'kind', ja: '種類', exEn: 'What ___ of music do you like?', exJa: 'どんな[種類]の音楽が好きですか。'}, 
+                        {en: 'interesting', ja: 'おもしろい', exEn: 'This book is very ___.', exJa: 'この本はとても[面白い]です。'}, 
+                        {en: 'character', ja: 'キャラクター', exEn: 'Who is your favorite ___?', exJa: 'お気に入りの[キャラクター]は誰ですか。'}, 
+                        {en: 'favorite', ja: 'お気に入りの', exEn: 'My ___ subject is math.', exJa: '私の[お気に入りの]科目は数学です。'}, 
+                        {en: 'study', ja: '勉強する', exEn: 'I ___ hard every day.', exJa: '私は毎日一生懸命[勉強します]。'}, 
+                        {en: 'walk', ja: '歩く', exEn: 'I ___ to school.', exJa: '私は学校へ[歩いて]いきます。'}, 
+                        {en: 'live', ja: '住む', exEn: 'I ___ in Tokyo.', exJa: '私は東京に[住んで]います。'}, 
+                        {en: 'practice', ja: '練習する', exEn: 'I ___ the piano.', exJa: '私はピアノを[練習します]。'}, 
+                        {en: 'hard', ja: '一生懸命に', exEn: 'She studies very ___.', exJa: '彼女はとても[一生懸命に]勉強します。'}, 
+                        {en: 'win', ja: '勝つ', exEn: 'We want to ___ the game.', exJa: '私たちは試合に[勝ち]たいです。'}, 
+                        {en: 'where', ja: 'どこ', exEn: '___ do you live?', exJa: 'あなたは[どこ]に住んでいますか。'}, 
+                        {en: 'game', ja: '試合', exEn: 'I watched a soccer ___.', exJa: '私はサッカーの[試合]を見ました。'}, 
+                        {en: 'next', ja: '次の', exEn: 'See you ___ week.', exJa: 'また[次の]週(来週)。'}
                     ] },
                     { id: 'j1-u4', name: 'Unit 4 (Read & Think含む)', words: [
-                        {en: 'animal', ja: '動物', exEn: 'I like ___s.', exJa: '私は動物が好きです。'}, 
-                        {en: 'visit', ja: '訪れる', exEn: 'I want to ___ Kyoto.', exJa: '私は京都を訪れたいです。'}, 
-                        {en: 'how', ja: 'どのように', exEn: '___ do you come to school?', exJa: 'どのようにして学校に来ますか。'}, 
-                        {en: 'many', ja: 'たくさんの', exEn: 'I have ___ books.', exJa: '私はたくさんの本を持っています。'}, 
-                        {en: 'really', ja: '本当に', exEn: 'I ___ like this song.', exJa: '私は本当にこの歌が好きです。'}, 
-                        {en: 'someday', ja: 'いつか', exEn: 'I want to go there ___.', exJa: '私はいつかそこへ行きたいです。'}, 
-                        {en: 'time', ja: '時間', exEn: 'Do you have ___ now?', exJa: '今時間はありますか。'}, 
-                        {en: 'sport', ja: 'スポーツ', exEn: 'What ___ do you like?', exJa: 'どんなスポーツが好きですか。'}, 
-                        {en: 'look', ja: '見る', exEn: '___ at the picture.', exJa: 'その写真を見なさい。'}, 
-                        {en: 'right', ja: '右', exEn: 'Turn ___ at the corner.', exJa: '角を右に曲がりなさい。'}, 
-                        {en: 'front', ja: '前', exEn: 'Stand in ___ of the desk.', exJa: '机の前に立ちなさい。'}, 
-                        {en: 'worry', ja: '心配する', exEn: 'Don\'t ___.', exJa: '心配しないで。'}, 
-                        {en: 'yourself', ja: 'あなた自身', exEn: 'Please help ___ to the food.', exJa: '食べ物を自由にとって食べてね。'}
+                        {en: 'animal', ja: '動物', exEn: 'I like ___s.', exJa: '私は[動物]が好きです。'}, 
+                        {en: 'visit', ja: '訪れる', exEn: 'I want to ___ Kyoto.', exJa: '私は京都を[訪れ]たいです。'}, 
+                        {en: 'how', ja: 'どのように', exEn: '___ do you come to school?', exJa: '[どのように]して学校に来ますか。'}, 
+                        {en: 'many', ja: 'たくさんの', exEn: 'I have ___ books.', exJa: '私は[たくさんの]本を持っています。'}, 
+                        {en: 'really', ja: '本当に', exEn: 'I ___ like this song.', exJa: '私は[本当に]この歌が好きです。'}, 
+                        {en: 'someday', ja: 'いつか', exEn: 'I want to go there ___.', exJa: '私は[いつか]そこへ行きたいです。'}, 
+                        {en: 'time', ja: '時間', exEn: 'Do you have ___ now?', exJa: '今[時間]はありますか。'}, 
+                        {en: 'sport', ja: 'スポーツ', exEn: 'What ___ do you like?', exJa: 'どんな[スポーツ]が好きですか。'}, 
+                        {en: 'look', ja: '見る', exEn: '___ at the picture.', exJa: 'その写真を[見]なさい。'}, 
+                        {en: 'right', ja: '右', exEn: 'Turn ___ at the corner.', exJa: '角を[右]に曲がりなさい。'}, 
+                        {en: 'front', ja: '前', exEn: 'Stand in ___ of the desk.', exJa: '机の[前]に立ちなさい。'}, 
+                        {en: 'worry', ja: '心配する', exEn: 'Don\'t ___.', exJa: '[心配し]ないで。'}, 
+                        {en: 'yourself', ja: 'あなた自身', exEn: 'Please help ___ to the food.', exJa: '食べ物を[ご自身で(自由に)]とって食べてね。'}
                     ] },
                     { id: 'j1-u5', name: 'Unit 5 (Read & Think含む)', words: [
-                        {en: 'beautiful', ja: '美しい', exEn: 'This flower is ___.', exJa: 'この花は美しいです。'}, 
-                        {en: 'brother', ja: '兄、弟', exEn: 'He is my ___.', exJa: '彼は私の兄（弟）です。'}, 
-                        {en: 'local', ja: '地元の', exEn: 'I buy vegetables at a ___ market.', exJa: '私は地元の市場で野菜を買います。'}, 
-                        {en: 'work', ja: '働く', exEn: 'My father ___s in Tokyo.', exJa: '私の父は東京で働いています。'}, 
-                        {en: 'nature', ja: '自然', exEn: 'I love ___.', exJa: '私は自然が大好きです。'}, 
-                        {en: 'write', ja: '書く', exEn: 'I ___ a letter to my friend.', exJa: '私は友達に手紙を書きます。'}, 
-                        {en: 'know', ja: '知っている', exEn: 'Do you ___ him?', exJa: '彼を知っていますか。'}, 
-                        {en: 'popular', ja: '人気のある', exEn: 'Soccer is ___ in Japan.', exJa: 'サッカーは日本で人気があります。'}, 
-                        {en: 'dish', ja: '料理', exEn: 'This ___ is very delicious.', exJa: 'この料理はとてもおいしいです。'}, 
-                        {en: 'wonderful', ja: 'すばらしい', exEn: 'We had a ___ time.', exJa: '私たちは素晴らしい時間を過ごしました。'}, 
-                        {en: 'restaurant', ja: 'レストラン', exEn: 'Let\'s go to a ___.', exJa: 'レストランに行きましょう。'}, 
-                        {en: 'weekend', ja: '週末', exEn: 'What do you do on the ___?', exJa: '週末は何をしますか。'}, 
-                        {en: 'sometimes', ja: '時々', exEn: 'I ___ play tennis.', exJa: '私は時々テニスをします。'}
+                        {en: 'beautiful', ja: '美しい', exEn: 'This flower is ___.', exJa: 'この花は[美しい]です。'}, 
+                        {en: 'brother', ja: '兄、弟', exEn: 'He is my ___.', exJa: '彼は私の[兄（弟）]です。'}, 
+                        {en: 'local', ja: '地元の', exEn: 'I buy vegetables at a ___ market.', exJa: '私は[地元の]市場で野菜を買います。'}, 
+                        {en: 'work', ja: '働く', exEn: 'My father ___s in Tokyo.', exJa: '私の父は東京で[働いて]います。'}, 
+                        {en: 'nature', ja: '自然', exEn: 'I love ___.', exJa: '私は[自然]が大好きです。'}, 
+                        {en: 'write', ja: '書く', exEn: 'I ___ a letter to my friend.', exJa: '私は友達に手紙を[書きます]。'}, 
+                        {en: 'know', ja: '知っている', exEn: 'Do you ___ him?', exJa: '彼を[知って]いますか。'}, 
+                        {en: 'popular', ja: '人気のある', exEn: 'Soccer is ___ in Japan.', exJa: 'サッカーは日本で[人気があり]ます。'}, 
+                        {en: 'dish', ja: '料理', exEn: 'This ___ is very delicious.', exJa: 'この[料理]はとてもおいしいです。'}, 
+                        {en: 'wonderful', ja: 'すばらしい', exEn: 'We had a ___ time.', exJa: '私たちは[素晴らしい]時間を過ごしました。'}, 
+                        {en: 'restaurant', ja: 'レストラン', exEn: 'Let\'s go to a ___.', exJa: '[レストラン]に行きましょう。'}, 
+                        {en: 'weekend', ja: '週末', exEn: 'What do you do on the ___?', exJa: '[週末]は何をしますか。'}, 
+                        {en: 'sometimes', ja: '時々', exEn: 'I ___ play tennis.', exJa: '私は[時々]テニスをします。'}
                     ] },
                     { id: 'j1-u6', name: 'Unit 6 (Read & Think含む)', words: [
-                        {en: 'show', ja: '見せる', exEn: 'Please ___ me your notebook.', exJa: 'あなたのノートを見せてください。'}, 
-                        {en: 'everything', ja: 'すべてのこと', exEn: '___ is OK.', exJa: 'すべて大丈夫です。'}, 
-                        {en: 'together', ja: '一緒に', exEn: 'Let\'s play ___.', exJa: '一緒に遊びましょう。'}, 
-                        {en: 'ticket', ja: 'チケット', exEn: 'I have a ___ for the concert.', exJa: '私はコンサートのチケットを持っています。'}, 
-                        {en: 'whose', ja: 'だれの', exEn: '___ bag is this?', exJa: 'これは誰のかばんですか。'}, 
-                        {en: 'yours', ja: 'あなたのもの', exEn: 'Is this book ___?', exJa: 'この本はあなたのものですか。'}, 
-                        {en: 'wait', ja: '待つ', exEn: 'Please ___ a minute.', exJa: '少し待ってください。'}, 
-                        {en: 'mine', ja: '私のもの', exEn: 'That pen is ___.', exJa: 'あのペンは私のものです。'}, 
-                        {en: 'minute', ja: '分', exEn: 'Wait a ___, please.', exJa: 'ちょっと待ってください。'}, 
-                        {en: 'start', ja: '始まる', exEn: 'The game will ___ soon.', exJa: '試合はすぐに始まります。'}, 
-                        {en: 'history', ja: '歴史', exEn: 'I like Japanese ___.', exJa: '私は日本の歴史が好きです。'}, 
-                        {en: 'still', ja: 'まだ', exEn: 'He is ___ sleeping.', exJa: '彼はまだ寝ています。'}, 
-                        {en: 'clothes', ja: '服', exEn: 'I bought new ___.', exJa: '私は新しい服を買いました。'}, 
-                        {en: 'towel', ja: 'タオル', exEn: 'I use a ___ after swimming.', exJa: '水泳の後にタオルを使います。'}
+                        {en: 'show', ja: '見せる', exEn: 'Please ___ me your notebook.', exJa: 'あなたのノートを[見せ]てください。'}, 
+                        {en: 'everything', ja: 'すべてのこと', exEn: '___ is OK.', exJa: '[すべてのこと]が大丈夫です。'}, 
+                        {en: 'together', ja: '一緒に', exEn: 'Let\'s play ___.', exJa: '[一緒に]遊びましょう。'}, 
+                        {en: 'ticket', ja: 'チケット', exEn: 'I have a ___ for the concert.', exJa: '私はコンサートの[チケット]を持っています。'}, 
+                        {en: 'whose', ja: 'だれの', exEn: '___ bag is this?', exJa: 'これは[誰の]かばんですか。'}, 
+                        {en: 'yours', ja: 'あなたのもの', exEn: 'Is this book ___?', exJa: 'この本は[あなたのもの]ですか。'}, 
+                        {en: 'wait', ja: '待つ', exEn: 'Please ___ a minute.', exJa: '少し[待っ]てください。'}, 
+                        {en: 'mine', ja: '私のもの', exEn: 'That pen is ___.', exJa: 'あのペンは[私のもの]です。'}, 
+                        {en: 'minute', ja: '分', exEn: 'Wait a ___, please.', exJa: 'ちょっと(1[分])[待っ]てください。'}, 
+                        {en: 'start', ja: '始まる', exEn: 'The game will ___ soon.', exJa: '試合はすぐに[始まります]。'}, 
+                        {en: 'history', ja: '歴史', exEn: 'I like Japanese ___.', exJa: '私は日本の[歴史]が好きです。'}, 
+                        {en: 'still', ja: 'まだ', exEn: 'He is ___ sleeping.', exJa: '彼は[まだ]寝ています。'}, 
+                        {en: 'clothes', ja: '服', exEn: 'I bought new ___.', exJa: '私は新しい[服]を買いました。'}, 
+                        {en: 'towel', ja: 'タオル', exEn: 'I use a ___ after swimming.', exJa: '水泳の後に[タオル]を使います。'}
                     ] },
                     { id: 'j1-u7', name: 'Unit 7 (Read & Think含む)', words: [
-                        {en: 'plan', ja: '計画', exEn: 'Do you have any ___s for tomorrow?', exJa: '明日の計画は何かありますか。'}, 
-                        {en: 'free', ja: '暇な', exEn: 'Are you ___ this weekend?', exJa: '今週末は暇ですか。'}, 
-                        {en: 'mean', ja: '意味する', exEn: 'What does this word ___?', exJa: 'この単語は何を意味しますか。'}, 
-                        {en: 'tomorrow', ja: '明日', exEn: 'See you ___.', exJa: 'また明日。'}, 
-                        {en: 'talk', ja: '話す', exEn: 'Let\'s ___ about the plan.', exJa: '計画について話しましょう。'}, 
-                        {en: 'busy', ja: '忙しい', exEn: 'I am very ___ today.', exJa: '私は今日とても忙しいです。'}, 
-                        {en: 'appear', ja: '現れる', exEn: 'Stars ___ at night.', exJa: '夜になると星が現れます。'}, 
-                        {en: 'take', ja: '乗る、連れて行く', exEn: 'I ___ a bus to school.', exJa: '私はバスに乗って学校に行きます。'}, 
-                        {en: 'home', ja: '家', exEn: 'I went ___ early.', exJa: '私は早く家に帰りました。'}, 
-                        {en: 'people', ja: '人々', exEn: 'Many ___ live in Tokyo.', exJa: '多くの人々が東京に住んでいます。'}, 
-                        {en: 'place', ja: '場所', exEn: 'This is a nice ___.', exJa: 'ここは素敵な場所ですね。'}, 
-                        {en: 'buy', ja: '買う', exEn: 'I want to ___ a new bag.', exJa: '私は新しいかばんを買いたいです。'}, 
-                        {en: 'welcome', ja: '歓迎する', exEn: '___ to our school.', exJa: '私たちの学校へようこそ。'}, 
-                        {en: 'excuse', ja: '許す', exEn: '___ me, where is the station?', exJa: 'すみません、駅はどこですか。'}, 
-                        {en: 'late', ja: '遅れる', exEn: 'Don\'t be ___ for school.', exJa: '学校に遅れてはいけません。'}, 
-                        {en: 'travel', ja: '旅行する', exEn: 'I want to ___ around the world.', exJa: '私は世界中を旅行したいです。'}
+                        {en: 'plan', ja: '計画', exEn: 'Do you have any ___s for tomorrow?', exJa: '明日の[計画]は何かありますか。'}, 
+                        {en: 'free', ja: '暇な', exEn: 'Are you ___ this weekend?', exJa: '今週末は[暇(時間がある)]ですか。'}, 
+                        {en: 'mean', ja: '意味する', exEn: 'What does this word ___?', exJa: 'この単語は何を[意味し]ますか。'}, 
+                        {en: 'tomorrow', ja: '明日', exEn: 'See you ___.', exJa: 'また[明日]。'}, 
+                        {en: 'talk', ja: '話す', exEn: 'Let\'s ___ about the plan.', exJa: '計画について[話し]ましょう。'}, 
+                        {en: 'busy', ja: '忙しい', exEn: 'I am very ___ today.', exJa: '私は今日とても[忙しい]です。'}, 
+                        {en: 'appear', ja: '現れる', exEn: 'Stars ___ at night.', exJa: '夜になると星が[現れます]。'}, 
+                        {en: 'take', ja: '乗る、連れて行く', exEn: 'I ___ a bus to school.', exJa: '私はバスに[乗って]学校に行きます。'}, 
+                        {en: 'home', ja: '家', exEn: 'I went ___ early.', exJa: '私は早く[家]に帰りました。'}, 
+                        {en: 'people', ja: '人々', exEn: 'Many ___ live in Tokyo.', exJa: '多くの[人々]が東京に住んでいます。'}, 
+                        {en: 'place', ja: '場所', exEn: 'This is a nice ___.', exJa: 'ここは素敵な[場所]ですね。'}, 
+                        {en: 'buy', ja: '買う', exEn: 'I want to ___ a new bag.', exJa: '私は新しいかばんを[買い]たいです。'}, 
+                        {en: 'welcome', ja: '歓迎する', exEn: '___ to our school.', exJa: '私たちの学校へ[ようこそ(歓迎します)]。'}, 
+                        {en: 'excuse', ja: '許す', exEn: '___ me, where is the station?', exJa: '[すみません(許してください)]、駅はどこですか。'}, 
+                        {en: 'late', ja: '遅れる', exEn: 'Don\'t be ___ for school.', exJa: '学校に[遅れ]てはいけません。'}, 
+                        {en: 'travel', ja: '旅行する', exEn: 'I want to ___ around the world.', exJa: '私は世界中を[旅行し]たいです。'}
                     ] },
                     { id: 'j1-u8', name: 'Unit 8 (Read & Think含む)', words: [
-                        {en: 'child', ja: '子ども', exEn: 'She is a cute ___.', exJa: '彼女はかわいい子供です。'}, 
-                        {en: 'country', ja: '国', exEn: 'Japan is a beautiful ___.', exJa: '日本は美しい国です。'}, 
-                        {en: 'always', ja: 'いつも', exEn: 'He is ___ happy.', exJa: '彼はいつも幸せそうです。'}, 
-                        {en: 'try', ja: '試す', exEn: 'Let\'s ___ this cake.', exJa: 'このケーキを試してみましょう。'}, 
-                        {en: 'become', ja: 'なる', exEn: 'I want to ___ a doctor.', exJa: '私は医者になりたいです。'}, 
-                        {en: 'teach', ja: '教える', exEn: 'Mr. Smith ___es us English.', exJa: 'スミス先生は私たちに英語を教えます。'}, 
-                        {en: 'volunteer', ja: 'ボランティア', exEn: 'I work as a ___.', exJa: '私はボランティアとして働いています。'}, 
-                        {en: 'best', ja: '最も良い', exEn: 'He is my ___ friend.', exJa: '彼は私の親友です。'}, 
-                        {en: 'soup', ja: 'スープ', exEn: 'This ___ is hot.', exJa: 'このスープは熱いです。'}, 
-                        {en: 'paper', ja: '紙', exEn: 'Write your name on this ___.', exJa: 'この紙に名前を書きなさい。'}, 
-                        {en: 'need', ja: '必要とする', exEn: 'I ___ some water.', exJa: '私は少し水が必要です。'}, 
-                        {en: 'river', ja: '川', exEn: 'We swam in the ___.', exJa: '私たちはその川で泳ぎました。'}, 
-                        {en: 'far', ja: '遠い', exEn: 'The station is ___ from here.', exJa: '駅はここから遠いです。'}, 
-                        {en: 'build', ja: '建てる', exEn: 'They will ___ a new school.', exJa: '彼らは新しい学校を建てるつもりです。'}, 
-                        {en: 'money', ja: 'お金', exEn: 'I don\'t have much ___.', exJa: '私はあまりお金を持っていません。'}, 
-                        {en: 'group', ja: 'グループ', exEn: 'I joined a volunteer ___.', exJa: '私はボランティアグループに参加しました。'}, 
-                        {en: 'collect', ja: '集める', exEn: 'I ___ stamps.', exJa: '私は切手を集めています。'}, 
-                        {en: 'clean', ja: 'きれいにする', exEn: 'Please ___ your room.', exJa: '部屋をきれいにしなさい。'}
+                        {en: 'child', ja: '子ども', exEn: 'She is a cute ___.', exJa: '彼女はかわいい[子ども]です。'}, 
+                        {en: 'country', ja: '国', exEn: 'Japan is a beautiful ___.', exJa: '日本は美しい[国]です。'}, 
+                        {en: 'always', ja: 'いつも', exEn: 'He is ___ happy.', exJa: '彼は[いつも]幸せそうです。'}, 
+                        {en: 'try', ja: '試す', exEn: 'Let\'s ___ this cake.', exJa: 'このケーキを[試して]みましょう。'}, 
+                        {en: 'become', ja: 'なる', exEn: 'I want to ___ a doctor.', exJa: '私は医者に[なり]たいです。'}, 
+                        {en: 'teach', ja: '教える', exEn: 'Mr. Smith ___es us English.', exJa: 'スミス先生は私たちに英語を[教えます]。'}, 
+                        {en: 'volunteer', ja: 'ボランティア', exEn: 'I work as a ___.', exJa: '私は[ボランティア]として働いています。'}, 
+                        {en: 'best', ja: '最も良い', exEn: 'He is my ___ friend.', exJa: '彼は私の[最も良い]友達(親友)です。'}, 
+                        {en: 'soup', ja: 'スープ', exEn: 'This ___ is hot.', exJa: 'この[スープ]は熱いです。'}, 
+                        {en: 'paper', ja: '紙', exEn: 'Write your name on this ___.', exJa: 'この[紙]に名前を書きなさい。'}, 
+                        {en: 'need', ja: '必要とする', exEn: 'I ___ some water.', exJa: '私は少し水が[必要です]。'}, 
+                        {en: 'river', ja: '川', exEn: 'We swam in the ___.', exJa: '私たちはその[川]で泳ぎました。'}, 
+                        {en: 'far', ja: '遠い', exEn: 'The station is ___ from here.', exJa: '駅はここから[遠い]です。'}, 
+                        {en: 'build', ja: '建てる', exEn: 'They will ___ a new school.', exJa: '彼らは新しい学校を[建てる]つもりです。'}, 
+                        {en: 'money', ja: 'お金', exEn: 'I don\'t have much ___.', exJa: '私はあまり[お金]を持っていません。'}, 
+                        {en: 'group', ja: 'グループ', exEn: 'I joined a volunteer ___.', exJa: '私はボランティア[グループ]に参加しました。'}, 
+                        {en: 'collect', ja: '集める', exEn: 'I ___ stamps.', exJa: '私は切手を[集めて]います。'}, 
+                        {en: 'clean', ja: 'きれいにする', exEn: 'Please ___ your room.', exJa: '部屋を[きれいにし]なさい。'}
                     ] },
                     { id: 'j1-u9', name: 'Unit 9 (Read & Think含む)', words: [
-                        {en: 'during', ja: '〜の間に', exEn: 'I studied hard ___ the summer.', exJa: '私は夏の間、一生懸命勉強しました。'}, 
-                        {en: 'stay', ja: '滞在する', exEn: 'I will ___ at a hotel.', exJa: '私はホテルに滞在するつもりです。'}, 
-                        {en: 'last', ja: '最後の、この前の', exEn: 'I saw him ___ week.', exJa: '私は先週彼を見ました。'}, 
-                        {en: 'meet', ja: '会う', exEn: 'Let\'s ___ at the station.', exJa: '駅で会いましょう。'}, 
-                        {en: 'saw', ja: '見た (seeの過去形)', exEn: 'I ___ a movie yesterday.', exJa: '私は昨日映画を見ました。'}, 
-                        {en: 'back', ja: '戻って', exEn: 'He came ___ home.', exJa: '彼は家に戻ってきました。'}, 
-                        {en: 'vacation', ja: '休暇', exEn: 'I went to Hawaii on ___.', exJa: '私は休暇でハワイに行きました。'}, 
-                        {en: 'mountain', ja: '山', exEn: 'Mt. Fuji is a high ___.', exJa: '富士山は高い山です。'}, 
-                        {en: 'went', ja: '行った (goの過去形)', exEn: 'I ___ to the park.', exJa: '私は公園に行きました。'}, 
-                        {en: 'traditional', ja: '伝統的な', exEn: 'This is a ___ Japanese house.', exJa: 'これは日本の伝統的な家です。'}, 
-                        {en: 'special', ja: '特別な', exEn: 'Today is a ___ day.', exJa: '今日は特別な日です。'}, 
-                        {en: 'bought', ja: '買った (buyの過去形)', exEn: 'I ___ a new bag.', exJa: '私は新しいバッグを買いました。'}, 
-                        {en: 'read', ja: '読んだ (readの過去形)', exEn: 'I ___ a book last night.', exJa: '私は昨晩本を読みました。'}, 
-                        {en: 'said', ja: '言った (sayの過去形)', exEn: 'He ___ "Hello".', exJa: '彼は「こんにちは」と言いました。'}, 
-                        {en: 'came', ja: '来た (comeの過去形)', exEn: 'She ___ to my house.', exJa: '彼女は私の家に来ました。'}, 
-                        {en: 'spend', ja: '過ごす', exEn: 'I want to ___ time with my family.', exJa: '私は家族と時間を過ごしたいです。'}, 
-                        {en: 'wish', ja: '願う', exEn: 'I ___ for peace.', exJa: '私は平和を願います。'}
+                        {en: 'during', ja: '〜の間に', exEn: 'I studied hard ___ the summer.', exJa: '私は夏の[間に]一生懸命勉強しました。'}, 
+                        {en: 'stay', ja: '滞在する', exEn: 'I will ___ at a hotel.', exJa: '私はホテルに[滞在する]つもりです。'}, 
+                        {en: 'last', ja: '最後の、この前の', exEn: 'I saw him ___ week.', exJa: '私は[この前の]週(先週)彼を見ました。'}, 
+                        {en: 'meet', ja: '会う', exEn: 'Let\'s ___ at the station.', exJa: '駅で[会い]ましょう。'}, 
+                        {en: 'saw', ja: '見た (seeの過去形)', exEn: 'I ___ a movie yesterday.', exJa: '私は昨日映画を[見ました]。'}, 
+                        {en: 'back', ja: '戻って', exEn: 'He came ___ home.', exJa: '彼は家に[戻って]きました。'}, 
+                        {en: 'vacation', ja: '休暇', exEn: 'I went to Hawaii on ___.', exJa: '私は[休暇]でハワイに行きました。'}, 
+                        {en: 'mountain', ja: '山', exEn: 'Mt. Fuji is a high ___.', exJa: '富士山は高い[山]です。'}, 
+                        {en: 'went', ja: '行った (goの過去形)', exEn: 'I ___ to the park.', exJa: '私は公園に[行きました]。'}, 
+                        {en: 'traditional', ja: '伝統的な', exEn: 'This is a ___ Japanese house.', exJa: 'これは[伝統的な]日本の家です。'}, 
+                        {en: 'special', ja: '特別な', exEn: 'Today is a ___ day.', exJa: '今日は[特別な]日です。'}, 
+                        {en: 'bought', ja: '買った (buyの過去形)', exEn: 'I ___ a new bag.', exJa: '私は新しいバッグを[買いました]。'}, 
+                        {en: 'read', ja: '読んだ (readの過去形)', exEn: 'I ___ a book last night.', exJa: '私は昨晩本を[読みました]。'}, 
+                        {en: 'said', ja: '言った (sayの過去形)', exEn: 'He ___ "Hello".', exJa: '彼は「こんにちは」と[言いました]。'}, 
+                        {en: 'came', ja: '来た (comeの過去形)', exEn: 'She ___ to my house.', exJa: '彼女は私の家に[来ました]。'}, 
+                        {en: 'spend', ja: '過ごす', exEn: 'I want to ___ time with my family.', exJa: '私は家族と時間を[過ごし]たいです。'}, 
+                        {en: 'wish', ja: '願う', exEn: 'I ___ for peace.', exJa: '私は平和を[願います]。'}
                     ] },
                     { id: 'j1-u10', name: 'Unit 10 (Read & Think含む)', words: [
-                        {en: 'win', ja: '勝つ', exEn: 'We will ___ the game.', exJa: '私たちは試合に勝つでしょう。'}, 
-                        {en: 'realize', ja: '気付く', exEn: 'I ___d my mistake.', exJa: '私は自分の間違いに気づきました。'}, 
-                        {en: 'practice', ja: '練習する', exEn: 'I ___ tennis every day.', exJa: '私は毎日テニスを練習します。'}, 
-                        {en: 'place', ja: '場所', exEn: 'This is a good ___.', exJa: 'ここはよい場所ですね。'}, 
-                        {en: 'remember', ja: '思い出す', exEn: 'Do you ___ me?', exJa: '私を覚えていますか。'}, 
-                        {en: 'contest', ja: 'コンテスト', exEn: 'I joined a speech ___.', exJa: '私はスピーチコンテストに参加しました。'}, 
-                        {en: 'anyone', ja: 'だれか', exEn: 'Is ___ there?', exJa: '誰かそこにいますか。'}, 
-                        {en: 'memory', ja: '記憶', exEn: 'It is a good ___.', exJa: 'それは良い思い出です。'}, 
-                        {en: 'best', ja: '一番', exEn: 'He is the ___ player.', exJa: '彼は一番の選手です。'}, 
-                        {en: 'break', ja: '休憩', exEn: 'Let\'s take a short ___.', exJa: '短い休憩をとりましょう。'}, 
-                        {en: 'yesterday', ja: '昨日', exEn: 'It rained ___.', exJa: '昨日は雨が降りました。'}, 
-                        {en: 'heart', ja: '心', exEn: 'He has a kind ___.', exJa: '彼は優しい心を持っています。'}, 
-                        {en: 'fast', ja: '速く', exEn: 'He runs very ___.', exJa: '彼はとても速く走ります。'}, 
-                        {en: 'way', ja: '道、方法', exEn: 'This is the ___ to the station.', exJa: 'これが駅への道です。'}, 
-                        {en: 'trip', ja: '旅行', exEn: 'How was your ___?', exJa: '旅行はどうでしたか。'}, 
-                        {en: 'event', ja: 'イベント', exEn: 'We have a school ___ tomorrow.', exJa: '明日は学校の行事があります。'}
+                        {en: 'win', ja: '勝つ', exEn: 'We will ___ the game.', exJa: '私たちは試合に[勝つ]でしょう。'}, 
+                        {en: 'realize', ja: '気付く', exEn: 'I ___d my mistake.', exJa: '私は自分の間違いに[気づき]ました。'}, 
+                        {en: 'practice', ja: '練習する', exEn: 'I ___ tennis every day.', exJa: '私は毎日テニスを[練習します]。'}, 
+                        {en: 'place', ja: '場所', exEn: 'This is a good ___.', exJa: 'ここはよい[場所]ですね。'}, 
+                        {en: 'remember', ja: '思い出す', exEn: 'Do you ___ me?', exJa: '私を[覚えて(思い出して)]いますか。'}, 
+                        {en: 'contest', ja: 'コンテスト', exEn: 'I joined a speech ___.', exJa: '私はスピーチ[コンテスト]に参加しました。'}, 
+                        {en: 'anyone', ja: 'だれか', exEn: 'Is ___ there?', exJa: '[誰か]そこにいますか。'}, 
+                        {en: 'memory', ja: '記憶', exEn: 'It is a good ___.', exJa: 'それは良い[思い出(記憶)]です。'}, 
+                        {en: 'best', ja: '一番', exEn: 'He is the ___ player.', exJa: '彼は[一番の]選手です。'}, 
+                        {en: 'break', ja: '休憩', exEn: 'Let\'s take a short ___.', exJa: '短い[休憩]をとりましょう。'}, 
+                        {en: 'yesterday', ja: '昨日', exEn: 'It rained ___.', exJa: '[昨日]は雨が降りました。'}, 
+                        {en: 'heart', ja: '心', exEn: 'He has a kind ___.', exJa: '彼は優しい[心]を持っています。'}, 
+                        {en: 'fast', ja: '速く', exEn: 'He runs very ___.', exJa: '彼はとても[速く]走ります。'}, 
+                        {en: 'way', ja: '道、方法', exEn: 'This is the ___ to the station.', exJa: 'これが駅への[道]です。'}, 
+                        {en: 'trip', ja: '旅行', exEn: 'How was your ___?', exJa: '[旅行]はどうでしたか。'}, 
+                        {en: 'event', ja: 'イベント', exEn: 'We have a school ___ tomorrow.', exJa: '明日は学校の[行事(イベント)]があります。'}
                     ] },
                     { id: 'j1-ex', name: "Let's Read / Stage Activity 等", words: [
-                        {en: 'later', ja: '後で', exEn: 'See you ___.', exJa: 'また後で。'}, 
-                        {en: 'alone', ja: 'ひとりで', exEn: 'She lives ___.', exJa: '彼女は一人で住んでいます。'}, 
-                        {en: 'think', ja: '考える', exEn: 'I ___ so too.', exJa: '私もそう思います。'}, 
-                        {en: 'die', ja: '死ぬ', exEn: 'My dog ___d last year.', exJa: '私の犬は昨年死にました。'}, 
-                        {en: 'receive', ja: '受け取る', exEn: 'I ___d a letter.', exJa: '私は手紙を受け取りました。'}, 
-                        {en: 'heard', ja: '聞いた', exEn: 'I ___ the news.', exJa: '私はそのニュースを聞きました。'}, 
-                        {en: 'leave', ja: '出発する、去る', exEn: 'I will ___ home at 7.', exJa: '私は7時に家を出ます。'}, 
-                        {en: 'someone', ja: '誰か', exEn: '___ is at the door.', exJa: '誰かがドアのところにいます。'}, 
-                        {en: 'himself', ja: '彼自身', exEn: 'He made it by ___.', exJa: '彼は自分でそれを作りました。'}, 
-                        {en: 'bring', ja: '持ってくる', exEn: 'Please ___ your notebook.', exJa: 'あなたのノートを持ってきてください。'}, 
-                        {en: 'take', ja: '持っていく', exEn: 'Don\'t forget to ___ your umbrella.', exJa: '傘を持っていくのを忘れないで。'}, 
-                        {en: 'door', ja: 'ドア', exEn: 'Close the ___, please.', exJa: 'ドアを閉めてください。'}, 
-                        {en: 'through', ja: '〜を通って', exEn: 'Look ___ the window.', exJa: '窓を通して見なさい。'}, 
-                        {en: 'into', ja: '〜の中へ', exEn: 'He went ___ the room.', exJa: '彼は部屋の中に入りました。'}, 
-                        {en: 'ground', ja: '地面', exEn: 'The ___ is wet.', exJa: '地面が濡れています。'}, 
-                        {en: 'drop', ja: '落ちる', exEn: 'Don\'t ___ the glass.', exJa: 'グラスを落とさないで。'}, 
-                        {en: 'subject', ja: '科目', exEn: 'Math is my favorite ___.', exJa: '数学は私のお気に入りの科目です。'}, 
-                        {en: 'famous', ja: '有名な', exEn: 'Kyoto is a ___ city.', exJa: '京都は有名な都市です。'}, 
-                        {en: 'favorite', ja: 'お気に入りの', exEn: 'This is my ___ song.', exJa: 'これは私のお気に入りの歌です。'}, 
-                        {en: 'movie', ja: '映画', exEn: 'I watched a ___ yesterday.', exJa: '私は昨日映画を見ました。'}
+                        {en: 'later', ja: '後で', exEn: 'See you ___.', exJa: 'また[後で]。'}, 
+                        {en: 'alone', ja: 'ひとりで', exEn: 'She lives ___.', exJa: '彼女は[一人で]住んでいます。'}, 
+                        {en: 'think', ja: '考える', exEn: 'I ___ so too.', exJa: '私もそう[思います(考えます)]。'}, 
+                        {en: 'die', ja: '死ぬ', exEn: 'My dog ___d last year.', exJa: '私の犬は昨年[死に]ました。'}, 
+                        {en: 'receive', ja: '受け取る', exEn: 'I ___d a letter.', exJa: '私は手紙を[受け取り]ました。'}, 
+                        {en: 'heard', ja: '聞いた', exEn: 'I ___ the news.', exJa: '私はそのニュースを[聞きました]。'}, 
+                        {en: 'leave', ja: '出発する、去る', exEn: 'I will ___ home at 7.', exJa: '私は7時に家を[出ます(出発します)]。'}, 
+                        {en: 'someone', ja: '誰か', exEn: '___ is at the door.', exJa: '[誰か]がドアのところにいます。'}, 
+                        {en: 'himself', ja: '彼自身', exEn: 'He made it by ___.', exJa: '彼は[彼自身で]それを作りました。'}, 
+                        {en: 'bring', ja: '持ってくる', exEn: 'Please ___ your notebook.', exJa: 'あなたのノートを[持ってきて]ください。'}, 
+                        {en: 'take', ja: '持っていく', exEn: 'Don\'t forget to ___ your umbrella.', exJa: '傘を[持っていく]のを忘れないで。'}, 
+                        {en: 'door', ja: 'ドア', exEn: 'Close the ___, please.', exJa: '[ドア]を閉めてください。'}, 
+                        {en: 'through', ja: '〜を通って', exEn: 'Look ___ the window.', exJa: '窓を[通して]見なさい。'}, 
+                        {en: 'into', ja: '〜の中へ', exEn: 'He went ___ the room.', exJa: '彼は部屋の[中へ]入りました。'}, 
+                        {en: 'ground', ja: '地面', exEn: 'The ___ is wet.', exJa: '[地面]が濡れています。'}, 
+                        {en: 'drop', ja: '落ちる', exEn: 'Don\'t ___ the glass.', exJa: 'グラスを[落とさ]ないで。'}, 
+                        {en: 'subject', ja: '科目', exEn: 'Math is my favorite ___.', exJa: '数学は私のお気に入りの[科目]です。'}, 
+                        {en: 'famous', ja: '有名な', exEn: 'Kyoto is a ___ city.', exJa: '京都は[有名な]都市です。'}, 
+                        {en: 'favorite', ja: 'お気に入りの', exEn: 'This is my ___ song.', exJa: 'これは私の[お気に入りの]歌です。'}, 
+                        {en: 'movie', ja: '映画', exEn: 'I watched a ___ yesterday.', exJa: '私は昨日[映画]を見ました。'}
                     ] }
                 ]
             },
@@ -285,147 +311,147 @@
                 grade: '中学2年',
                 items: [
                     { id: 'j2-u0', name: 'Unit 0', words: [
-                        {en: 'experience', ja: '経験', exEn: 'It was a good ___.', exJa: 'それは良い経験でした。'}, 
-                        {en: 'same', ja: '同じ', exEn: 'We are the ___ age.', exJa: '私たちは同じ年齢です。'}, 
-                        {en: 'actually', ja: '実は', exEn: '___, I like cats.', exJa: '実は、私は猫が好きです。'}, 
-                        {en: 'noodle', ja: 'めん', exEn: 'I like cup ___s.', exJa: '私はカップ麺が好きです。'}, 
-                        {en: 'instant', ja: '即席の', exEn: 'He ate ___ noodles.', exJa: '彼は即席ラーメンを食べました。'}
+                        {en: 'experience', ja: '経験', exEn: 'It was a good ___.', exJa: 'それは良い[経験]でした。'}, 
+                        {en: 'same', ja: '同じ', exEn: 'We are the ___ age.', exJa: '私たちは[同じ]年齢です。'}, 
+                        {en: 'actually', ja: '実は', exEn: '___, I like cats.', exJa: '[実は]、私は猫が好きです。'}, 
+                        {en: 'noodle', ja: 'めん', exEn: 'I like cup ___s.', exJa: '私はカップ[麺]が好きです。'}, 
+                        {en: 'instant', ja: '即席の', exEn: 'He ate ___ noodles.', exJa: '彼は[即席]ラーメンを食べました。'}
                     ] },
                     { id: 'j2-u1', name: 'Unit 1 (Read & Think含む)', words: [
-                        {en: 'holiday', ja: '休日', exEn: 'I enjoy my ___.', exJa: '私は休日を楽しみます。'}, 
-                        {en: 'around', ja: '〜のまわりに', exEn: 'Let\'s walk ___ the park.', exJa: '公園の周りを歩きましょう。'}, 
-                        {en: 'soon', ja: 'すぐに', exEn: 'I will be back ___.', exJa: 'すぐに戻ります。'}, 
-                        {en: 'arrive', ja: '到着する', exEn: 'We will ___ at the station soon.', exJa: '私たちはもうすぐ駅に到着します。'}, 
-                        {en: 'leave', ja: '去る', exEn: 'I ___ home at eight.', exJa: '私は8時に家を出ます。'}, 
-                        {en: 'excited', ja: '興奮した', exEn: 'I am ___ about the trip.', exJa: '私は旅行についてワクワクしています。'}, 
-                        {en: 'foreign', ja: '外国の', exEn: 'He speaks a ___ language.', exJa: '彼は外国語を話します。'}, 
-                        {en: 'language', ja: '言語', exEn: 'English is an international ___.', exJa: '英語は国際的な言語です。'}, 
-                        {en: 'shop', ja: '店', exEn: 'Let\'s go to the ___.', exJa: 'その店に行きましょう。'}, 
-                        {en: 'find', ja: '見つける', exEn: 'Did you ___ your key?', exJa: '鍵は見つかりましたか。'}, 
-                        {en: 'example', ja: '例', exEn: 'For ___, I like apples.', exJa: '例えば、私はりんごが好きです。'}, 
-                        {en: 'different', ja: '異なる', exEn: 'We have ___ ideas.', exJa: '私たちは異なる考えを持っています。'}, 
-                        {en: 'culture', ja: '文化', exEn: 'I want to learn about Japanese ___.', exJa: '日本の文化について学びたいです。'}, 
-                        {en: 'area', ja: '地域', exEn: 'There are many parks in this ___.', exJa: 'この地域にはたくさんの公園があります。'}
+                        {en: 'holiday', ja: '休日', exEn: 'I enjoy my ___.', exJa: '私は[休日]を楽しみます。'}, 
+                        {en: 'around', ja: '〜のまわりに', exEn: 'Let\'s walk ___ the park.', exJa: '公園の[周りを]歩きましょう。'}, 
+                        {en: 'soon', ja: 'すぐに', exEn: 'I will be back ___.', exJa: '[すぐに]戻ります。'}, 
+                        {en: 'arrive', ja: '到着する', exEn: 'We will ___ at the station soon.', exJa: '私たちはもうすぐ駅に[到着します]。'}, 
+                        {en: 'leave', ja: '去る', exEn: 'I ___ home at eight.', exJa: '私は8時に家を[出ます(去ります)]。'}, 
+                        {en: 'excited', ja: '興奮した', exEn: 'I am ___ about the trip.', exJa: '私は旅行について[ワクワクして(興奮して)]います。'}, 
+                        {en: 'foreign', ja: '外国の', exEn: 'He speaks a ___ language.', exJa: '彼は[外国の]言語を話します。'}, 
+                        {en: 'language', ja: '言語', exEn: 'English is an international ___.', exJa: '英語は国際的な[言語]です。'}, 
+                        {en: 'shop', ja: '店', exEn: 'Let\'s go to the ___.', exJa: 'その[店]に行きましょう。'}, 
+                        {en: 'find', ja: '見つける', exEn: 'Did you ___ your key?', exJa: '鍵は[見つかり]ましたか。'}, 
+                        {en: 'example', ja: '例', exEn: 'For ___, I like apples.', exJa: '[例えば]、私はりんごが好きです。'}, 
+                        {en: 'different', ja: '異なる', exEn: 'We have ___ ideas.', exJa: '私たちは[異なる]考えを持っています。'}, 
+                        {en: 'culture', ja: '文化', exEn: 'I want to learn about Japanese ___.', exJa: '日本の[文化]について学びたいです。'}, 
+                        {en: 'area', ja: '地域', exEn: 'There are many parks in this ___.', exJa: 'この[地域]にはたくさんの公園があります。'}
                     ] },
                     { id: 'j2-u2', name: 'Unit 2 (Read & Think含む)', words: [
-                        {en: 'speech', ja: 'スピーチ', exEn: 'He made a good ___.', exJa: '彼はよいスピーチをしました。'}, 
-                        {en: 'butter', ja: 'バター', exEn: 'I need some ___ for the cake.', exJa: 'ケーキのためにバターが必要です。'}, 
-                        {en: 'add', ja: '加える', exEn: 'Please ___ some sugar.', exJa: '砂糖を少し加えてください。'}, 
-                        {en: 'change', ja: '変える', exEn: 'I want to ___ my clothes.', exJa: '私は服を着替えたいです。'}, 
-                        {en: 'create', ja: '創造する', exEn: 'He will ___ a new game.', exJa: '彼は新しいゲームを創造するでしょう。'}, 
-                        {en: 'climate', ja: '気候', exEn: 'Japan has a mild ___.', exJa: '日本は温和な気候です。'}, 
-                        {en: 'use', ja: '使う', exEn: 'Can I ___ your pen?', exJa: 'あなたのペンを使ってもいいですか。'}, 
-                        {en: 'company', ja: '会社', exEn: 'He works for a car ___.', exJa: '彼は自動車会社で働いています。'}, 
-                        {en: 'small', ja: '小さい', exEn: 'I have a ___ dog.', exJa: '私は小さな犬を飼っています。'}, 
-                        {en: 'less', ja: 'より少なく', exEn: 'I want ___ sugar.', exJa: '砂糖は少なめにしてください。'}, 
-                        {en: 'hour', ja: '時間', exEn: 'It takes one ___.', exJa: '1時間かかります。'}
+                        {en: 'speech', ja: 'スピーチ', exEn: 'He made a good ___.', exJa: '彼はよい[スピーチ]をしました。'}, 
+                        {en: 'butter', ja: 'バター', exEn: 'I need some ___ for the cake.', exJa: 'ケーキのために[バター]が必要です。'}, 
+                        {en: 'add', ja: '加える', exEn: 'Please ___ some sugar.', exJa: '砂糖を少し[加えて]ください。'}, 
+                        {en: 'change', ja: '変える', exEn: 'I want to ___ my clothes.', exJa: '私は服を[着替え(変え)]たいです。'}, 
+                        {en: 'create', ja: '創造する', exEn: 'He will ___ a new game.', exJa: '彼は新しいゲームを[創造する]でしょう。'}, 
+                        {en: 'climate', ja: '気候', exEn: 'Japan has a mild ___.', exJa: '日本は温和な[気候]です。'}, 
+                        {en: 'use', ja: '使う', exEn: 'Can I ___ your pen?', exJa: 'あなたのペンを[使って]もいいですか。'}, 
+                        {en: 'company', ja: '会社', exEn: 'He works for a car ___.', exJa: '彼は自動車[会社]で働いています。'}, 
+                        {en: 'small', ja: '小さい', exEn: 'I have a ___ dog.', exJa: '私は[小さな]犬を飼っています。'}, 
+                        {en: 'less', ja: 'より少なく', exEn: 'I want ___ sugar.', exJa: '砂糖は[少なめに]してください。'}, 
+                        {en: 'hour', ja: '時間', exEn: 'It takes one ___.', exJa: '1[時間]かかります。'}
                     ] },
                     { id: 'j2-u3', name: 'Unit 3 (Read & Think含む)', words: [
-                        {en: 'information', ja: '情報', exEn: 'I need more ___.', exJa: '私はもっと情報が必要です。'}, 
-                        {en: 'international', ja: '国際的な', exEn: 'This is an ___ school.', exJa: 'これは国際的な学校です。'}, 
-                        {en: 'choose', ja: '選ぶ', exEn: 'Please ___ one.', exJa: '1つ選んでください。'}, 
-                        {en: 'difficult', ja: '難しい', exEn: 'Math is ___ for me.', exJa: '数学は私にとって難しいです。'}, 
-                        {en: 'necessary', ja: '必要な', exEn: 'Sleep is ___ for health.', exJa: '睡眠は健康に必要です。'}, 
-                        {en: 'understand', ja: '理解する', exEn: 'I can\'t ___ him.', exJa: '私は彼を理解できません。'}, 
-                        {en: 'story', ja: '物語', exEn: 'Tell me a ___.', exJa: '物語を話してください。'}, 
-                        {en: 'learn', ja: '学ぶ', exEn: 'I want to ___ French.', exJa: '私はフランス語を学びたいです。'}, 
-                        {en: 'start', ja: '始める', exEn: 'Let\'s ___ the meeting.', exJa: '会議を始めましょう。'}, 
-                        {en: 'important', ja: '重要な', exEn: 'This is an ___ point.', exJa: 'これは重要な点です。'}, 
-                        {en: 'taught', ja: '教えた (teachの過去形)', exEn: 'She ___ me English.', exJa: '彼女は私に英語を教えてくれました。'}, 
-                        {en: 'smile', ja: 'ほほえむ', exEn: 'He ___d at me.', exJa: '彼は私にほほえみました。'}, 
-                        {en: 'glad', ja: 'うれしい', exEn: 'I am ___ to see you.', exJa: '私はあなたに会えて嬉しいです。'}, 
-                        {en: 'now', ja: '今', exEn: 'I am busy ___.', exJa: '私は今忙しいです。'}
+                        {en: 'information', ja: '情報', exEn: 'I need more ___.', exJa: '私はもっと[情報]が必要です。'}, 
+                        {en: 'international', ja: '国際的な', exEn: 'This is an ___ school.', exJa: 'これは[国際的な]学校です。'}, 
+                        {en: 'choose', ja: '選ぶ', exEn: 'Please ___ one.', exJa: '1つ[選んで]ください。'}, 
+                        {en: 'difficult', ja: '難しい', exEn: 'Math is ___ for me.', exJa: '数学は私にとって[難しい]です。'}, 
+                        {en: 'necessary', ja: '必要な', exEn: 'Sleep is ___ for health.', exJa: '睡眠は健康に[必要]です。'}, 
+                        {en: 'understand', ja: '理解する', exEn: 'I can\'t ___ him.', exJa: '私は彼を[理解でき]ません。'}, 
+                        {en: 'story', ja: '物語', exEn: 'Tell me a ___.', exJa: '[物語]を話してください。'}, 
+                        {en: 'learn', ja: '学ぶ', exEn: 'I want to ___ French.', exJa: '私はフランス語を[学び]たいです。'}, 
+                        {en: 'start', ja: '始める', exEn: 'Let\'s ___ the meeting.', exJa: '会議を[始め]ましょう。'}, 
+                        {en: 'important', ja: '重要な', exEn: 'This is an ___ point.', exJa: 'これは[重要な]点です。'}, 
+                        {en: 'taught', ja: '教えた (teachの過去形)', exEn: 'She ___ me English.', exJa: '彼女は私に英語を[教えてくれました]。'}, 
+                        {en: 'smile', ja: 'ほほえむ', exEn: 'He ___d at me.', exJa: '彼は私に[ほほえみ]ました。'}, 
+                        {en: 'glad', ja: 'うれしい', exEn: 'I am ___ to see you.', exJa: '私はあなたに会えて[嬉しい]です。'}, 
+                        {en: 'now', ja: '今', exEn: 'I am busy ___.', exJa: '私は[今]忙しいです。'}
                     ] },
                     { id: 'j2-u4', name: 'Unit 4 (Read & Think含む)', words: [
-                        {en: 'member', ja: 'メンバー', exEn: 'He is a ___ of our team.', exJa: '彼は私たちのチームのメンバーです。'}, 
-                        {en: 'guest', ja: '客', exEn: 'We have a ___ today.', exJa: '今日は客がいます。'}, 
-                        {en: 'ask', ja: '尋ねる', exEn: 'May I ___ a question?', exJa: '質問してもいいですか。'}, 
-                        {en: 'rule', ja: 'ルール', exEn: 'You must follow the ___s.', exJa: 'ルールに従わなければなりません。'}, 
-                        {en: 'follow', ja: '従う', exEn: 'Please ___ me.', exJa: '私についてきてください。'}, 
-                        {en: 'save', ja: '救う', exEn: 'We must ___ the earth.', exJa: '私たちは地球を救わなければなりません。'}, 
-                        {en: 'prepare', ja: '準備する', exEn: 'I have to ___ for the test.', exJa: '私はテストの準備をしなければなりません。'}, 
-                        {en: 'hard', ja: '一生懸命に', exEn: 'He works very ___.', exJa: '彼はとても一生懸命に働きます。'}, 
-                        {en: 'done', ja: '終わった', exEn: 'Are you ___ with your homework?', exJa: '宿題は終わりましたか。'}, 
-                        {en: 'finish', ja: '終える', exEn: 'I will ___ it soon.', exJa: '私はすぐにそれを終えるでしょう。'}, 
-                        {en: 'hurt', ja: '傷つける', exEn: 'My leg ___s.', exJa: '足が痛みます(傷つきます)。'}, 
-                        {en: 'much', ja: 'たくさんの', exEn: 'Thank you very ___.', exJa: 'どうもありがとうございます。'}, 
-                        {en: 'should', ja: '〜すべき', exEn: 'You ___ go to bed early.', exJa: 'あなたは早く寝るべきです。'}, 
-                        {en: 'feeling', ja: '感情', exEn: 'I have a bad ___.', exJa: '嫌な予感(感情)がします。'}, 
-                        {en: 'after', ja: '〜の後に', exEn: 'Let\'s play ___ school.', exJa: '放課後(学校の後)に遊びましょう。'}, 
-                        {en: 'carefully', ja: '注意深く', exEn: 'Please listen ___.', exJa: '注意深く聞いてください。'}, 
-                        {en: 'other', ja: '他の', exEn: 'I have ___ books.', exJa: '私は他の本を持っています。'}, 
-                        {en: 'wish', ja: '願う', exEn: 'Make a ___.', exJa: '願い事をしなさい。'}
+                        {en: 'member', ja: 'メンバー', exEn: 'He is a ___ of our team.', exJa: '彼は私たちのチームの[メンバー]です。'}, 
+                        {en: 'guest', ja: '客', exEn: 'We have a ___ today.', exJa: '今日は[お客さん]がいます。'}, 
+                        {en: 'ask', ja: '尋ねる', exEn: 'May I ___ a question?', exJa: '[質問して(尋ねて)]もいいですか。'}, 
+                        {en: 'rule', ja: 'ルール', exEn: 'You must follow the ___s.', exJa: '[ルール]に従わなければなりません。'}, 
+                        {en: 'follow', ja: '従う', exEn: 'Please ___ me.', exJa: '私に[ついてきて(従って)]ください。'}, 
+                        {en: 'save', ja: '救う', exEn: 'We must ___ the earth.', exJa: '私たちは地球を[救わ]なければなりません。'}, 
+                        {en: 'prepare', ja: '準備する', exEn: 'I have to ___ for the test.', exJa: '私はテストの[準備をし]なければなりません。'}, 
+                        {en: 'hard', ja: '一生懸命に', exEn: 'He works very ___.', exJa: '彼はとても[一生懸命に]働きます。'}, 
+                        {en: 'done', ja: '終わった', exEn: 'Are you ___ with your homework?', exJa: '宿題は[終わりました]か。'}, 
+                        {en: 'finish', ja: '終える', exEn: 'I will ___ it soon.', exJa: '私はすぐにそれを[終える]でしょう。'}, 
+                        {en: 'hurt', ja: '傷つける', exEn: 'My leg ___s.', exJa: '足が[痛みます(傷つきます)]。'}, 
+                        {en: 'much', ja: 'たくさんの', exEn: 'Thank you very ___.', exJa: '[どうも(たくさん)]ありがとうございます。'}, 
+                        {en: 'should', ja: '〜すべき', exEn: 'You ___ go to bed early.', exJa: 'あなたは早く寝る[べきです]。'}, 
+                        {en: 'feeling', ja: '感情', exEn: 'I have a bad ___.', exJa: '嫌な予感([感情])がします。'}, 
+                        {en: 'after', ja: '〜の後に', exEn: 'Let\'s play ___ school.', exJa: '放課後(学校の[後])に遊びましょう。'}, 
+                        {en: 'carefully', ja: '注意深く', exEn: 'Please listen ___.', exJa: '[注意深く]聞いてください。'}, 
+                        {en: 'other', ja: '他の', exEn: 'I have ___ books.', exJa: '私は[他の]本を持っています。'}, 
+                        {en: 'wish', ja: '願う', exEn: 'Make a ___.', exJa: '[願い事]をしなさい。'}
                     ] },
                     { id: 'j2-u5', name: 'Unit 5 (Read & Think含む)', words: [
-                        {en: 'bottle', ja: 'ボトル', exEn: 'I need a ___ of water.', exJa: '私は水が1ボトル必要です。'}, 
-                        {en: 'product', ja: '製品', exEn: 'This is a new ___.', exJa: 'これは新製品です。'}, 
-                        {en: 'touch', ja: '触れる', exEn: 'Don\'t ___ the painting.', exJa: '絵に触れないでください。'}, 
-                        {en: 'over', ja: '〜を超えて', exEn: 'The plane flew ___ the mountain.', exJa: '飛行機は山を越えて飛びました。'}, 
-                        {en: 'paper', ja: '紙', exEn: 'I need a piece of ___.', exJa: '私は1枚の紙が必要です。'}, 
-                        {en: 'staff', ja: 'スタッフ', exEn: 'Ask the hotel ___.', exJa: 'ホテルのスタッフに尋ねてください。'}, 
-                        {en: 'baby', ja: '赤ん坊', exEn: 'The ___ is sleeping.', exJa: '赤ん坊は眠っています。'}, 
-                        {en: 'useful', ja: '役に立つ', exEn: 'This dictionary is very ___.', exJa: 'この辞書はとても役に立ちます。'}, 
-                        {en: 'sure', ja: '確信して', exEn: 'Are you ___?', exJa: '確信していますか(本当ですか)。'}, 
-                        {en: 'young', ja: '若い', exEn: 'He is a ___ man.', exJa: '彼は若い男性です。'}
+                        {en: 'bottle', ja: 'ボトル', exEn: 'I need a ___ of water.', exJa: '私は水が1[ボトル]必要です。'}, 
+                        {en: 'product', ja: '製品', exEn: 'This is a new ___.', exJa: 'これは新[製品]です。'}, 
+                        {en: 'touch', ja: '触れる', exEn: 'Don\'t ___ the painting.', exJa: '絵に[触れ]ないでください。'}, 
+                        {en: 'over', ja: '〜を超えて', exEn: 'The plane flew ___ the mountain.', exJa: '飛行機は山を[越えて]飛びました。'}, 
+                        {en: 'paper', ja: '紙', exEn: 'I need a piece of ___.', exJa: '私は1枚の[紙]が必要です。'}, 
+                        {en: 'staff', ja: 'スタッフ', exEn: 'Ask the hotel ___.', exJa: 'ホテルの[スタッフ]に尋ねてください。'}, 
+                        {en: 'baby', ja: '赤ん坊', exEn: 'The ___ is sleeping.', exJa: '[赤ん坊]は眠っています。'}, 
+                        {en: 'useful', ja: '役に立つ', exEn: 'This dictionary is very ___.', exJa: 'この辞書はとても[役に立ち]ます。'}, 
+                        {en: 'sure', ja: '確信して', exEn: 'Are you ___?', exJa: '[確信して]いますか(本当ですか)。'}, 
+                        {en: 'young', ja: '若い', exEn: 'He is a ___ man.', exJa: '彼は[若い]男性です。'}
                     ] },
                     { id: 'j2-u6', name: 'Unit 6 (Read & Think含む)', words: [
-                        {en: 'answer', ja: '答える', exEn: 'Please ___ the question.', exJa: '質問に答えてください。'}, 
-                        {en: 'most', ja: 'ほとんどの', exEn: '___ people like music.', exJa: 'ほとんどの人々は音楽が好きです。'}, 
-                        {en: 'quiz', ja: 'クイズ', exEn: 'We had a math ___ today.', exJa: '今日数学の小テスト(クイズ)がありました。'}, 
-                        {en: 'skill', ja: 'スキル', exEn: 'Reading is an important ___.', exJa: '読書は重要なスキルです。'}, 
-                        {en: 'survey', ja: '調査', exEn: 'We did a ___ about sports.', exJa: '私たちはスポーツについての調査をしました。'}, 
-                        {en: 'court', ja: 'コート', exEn: 'We play tennis on the ___.', exJa: '私たちはコートでテニスをします。'}, 
-                        {en: 'strategy', ja: '戦略', exEn: 'We need a good ___.', exJa: '私たちは良い戦略が必要です。'}, 
-                        {en: 'souvenir', ja: 'お土産', exEn: 'I bought a ___ in Kyoto.', exJa: '私は京都でお土産を買いました。'}, 
-                        {en: 'letter', ja: '文字', exEn: 'Write it in big ___s.', exJa: 'それを大きな文字で書いてください。'}, 
-                        {en: 'topic', ja: '話題', exEn: 'What is today\'s ___?', exJa: '今日の話題は何ですか。'}, 
-                        {en: 'data', ja: 'データ', exEn: 'This ___ is old.', exJa: 'このデータは古いです。'}, 
-                        {en: 'comment', ja: 'コメント', exEn: 'Leave a ___ below.', exJa: '下にコメントを残してください。'}, 
-                        {en: 'feedback', ja: 'フィードバック', exEn: 'Thank you for your ___.', exJa: 'フィードバックをありがとうございます。'}, 
-                        {en: 'contact', ja: '連絡', exEn: 'Please ___ me later.', exJa: '後で私に連絡してください。'}, 
-                        {en: 'clear', ja: '明確な', exEn: 'The water is very ___.', exJa: 'その水はとても透き通って(明確で)います。'}, 
-                        {en: 'best', ja: '一番良い', exEn: 'This is the ___ movie.', exJa: 'これは一番良い映画です。'}, 
-                        {en: 'half', ja: '半分', exEn: 'I ate ___ of the pizza.', exJa: '私はピザの半分を食べました。'}, 
-                        {en: 'find', ja: '見つける', exEn: 'I couldn\'t ___ my bag.', exJa: '私はかばんを見つけられませんでした。'}, 
-                        {en: 'work', ja: '働く', exEn: 'He ___s at a bank.', exJa: '彼は銀行で働いています。'}, 
-                        {en: 'spoke', ja: '話した (speakの過去形)', exEn: 'She ___ to me.', exJa: '彼女は私に話しかけました。'}
+                        {en: 'answer', ja: '答える', exEn: 'Please ___ the question.', exJa: '質問に[答えて]ください。'}, 
+                        {en: 'most', ja: 'ほとんどの', exEn: '___ people like music.', exJa: '[ほとんどの]人々は音楽が好きです。'}, 
+                        {en: 'quiz', ja: 'クイズ', exEn: 'We had a math ___ today.', exJa: '今日数学の[小テスト(クイズ)]がありました。'}, 
+                        {en: 'skill', ja: 'スキル', exEn: 'Reading is an important ___.', exJa: '読書は重要な[スキル]です。'}, 
+                        {en: 'survey', ja: '調査', exEn: 'We did a ___ about sports.', exJa: '私たちはスポーツについての[調査]をしました。'}, 
+                        {en: 'court', ja: 'コート', exEn: 'We play tennis on the ___.', exJa: '私たちは[コート]でテニスをします。'}, 
+                        {en: 'strategy', ja: '戦略', exEn: 'We need a good ___.', exJa: '私たちは良い[戦略]が必要です。'}, 
+                        {en: 'souvenir', ja: 'お土産', exEn: 'I bought a ___ in Kyoto.', exJa: '私は京都で[お土産]を買いました。'}, 
+                        {en: 'letter', ja: '文字', exEn: 'Write it in big ___s.', exJa: 'それを大きな[文字]で書いてください。'}, 
+                        {en: 'topic', ja: '話題', exEn: 'What is today\'s ___?', exJa: '今日の[話題]は何ですか。'}, 
+                        {en: 'data', ja: 'データ', exEn: 'This ___ is old.', exJa: 'この[データ]は古いです。'}, 
+                        {en: 'comment', ja: 'コメント', exEn: 'Leave a ___ below.', exJa: '下に[コメント]を残してください。'}, 
+                        {en: 'feedback', ja: 'フィードバック', exEn: 'Thank you for your ___.', exJa: '[フィードバック]をありがとうございます。'}, 
+                        {en: 'contact', ja: '連絡', exEn: 'Please ___ me later.', exJa: '後で私に[連絡して]ください。'}, 
+                        {en: 'clear', ja: '明確な', exEn: 'The water is very ___.', exJa: 'その水はとても透き通って([明確で])います。'}, 
+                        {en: 'best', ja: '一番良い', exEn: 'This is the ___ movie.', exJa: 'これは[一番良い]映画です。'}, 
+                        {en: 'half', ja: '半分', exEn: 'I ate ___ of the pizza.', exJa: '私はピザの[半分]を食べました。'}, 
+                        {en: 'find', ja: '見つける', exEn: 'I couldn\'t ___ my bag.', exJa: '私はかばんを[見つけ]られませんでした。'}, 
+                        {en: 'work', ja: '働く', exEn: 'He ___s at a bank.', exJa: '彼は銀行で[働いて]います。'}, 
+                        {en: 'spoke', ja: '話した (speakの過去形)', exEn: 'She ___ to me.', exJa: '彼女は私に[話しかけました]。'}
                     ] },
                     { id: 'j2-u7', name: 'Unit 7 (Read & Think含む)', words: [
-                        {en: 'decide', ja: '決める', exEn: 'I can\'t ___.', exJa: '私は決められません。'}, 
-                        {en: 'natural', ja: '自然の', exEn: 'This is a ___ disaster.', exJa: 'これは自然災害です。'}, 
-                        {en: 'site', ja: '敷地、遺跡', exEn: 'We visited an old ___.', exJa: '私たちは古い遺跡を訪れました。'}, 
-                        {en: 'conference', ja: '会議', exEn: 'He attended a ___.', exJa: '彼は会議に出席しました。'}, 
-                        {en: 'cultural', ja: '文化的な', exEn: 'Kyoto has many ___ events.', exJa: '京都には多くの文化的な行事があります。'}, 
-                        {en: 'mixed', ja: '混ざった', exEn: 'I have ___ feelings.', exJa: '私は複雑な(混ざった)感情を抱いています。'}, 
-                        {en: 'selection', ja: '選択', exEn: 'We have a good ___ of books.', exJa: '私たちは良い本の品揃え(選択)を持っています。'}, 
-                        {en: 'standard', ja: '基準', exEn: 'This is the ___ size.', exJa: 'これが標準サイズです。'}, 
-                        {en: 'list', ja: 'リスト', exEn: 'Make a shopping ___.', exJa: '買い物リストを作りなさい。'}, 
-                        {en: 'forever', ja: '永遠に', exEn: 'I will love you ___.', exJa: '私はあなたを永遠に愛します。'}, 
-                        {en: 'path', ja: '小道', exEn: 'Walk along this ___.', exJa: 'この小道に沿って歩きなさい。'}, 
-                        {en: 'cleanup', ja: '掃除', exEn: 'We had a beach ___ day.', exJa: '私たちはビーチの清掃日を設けました。'}, 
-                        {en: 'face', ja: '直面する', exEn: 'We have to ___ the problem.', exJa: '私たちは問題に直面しなければなりません。'}, 
-                        {en: 'built', ja: '建てられた', exEn: 'This house was ___ in 1990.', exJa: 'この家は1990年に建てられました。'}, 
-                        {en: 'climb', ja: '登る', exEn: 'I want to ___ Mt. Fuji.', exJa: '私は富士山に登りたいです。'}, 
-                        {en: 'seen', ja: '見られた', exEn: 'Have you ___ my dog?', exJa: '私の犬を見ませんでしたか。'}
+                        {en: 'decide', ja: '決める', exEn: 'I can\'t ___.', exJa: '私は[決め]られません。'}, 
+                        {en: 'natural', ja: '自然の', exEn: 'This is a ___ disaster.', exJa: 'これは[自然の]災害です。'}, 
+                        {en: 'site', ja: '敷地、遺跡', exEn: 'We visited an old ___.', exJa: '私たちは古い[遺跡]を訪れました。'}, 
+                        {en: 'conference', ja: '会議', exEn: 'He attended a ___.', exJa: '彼は[会議]に出席しました。'}, 
+                        {en: 'cultural', ja: '文化的な', exEn: 'Kyoto has many ___ events.', exJa: '京都には多くの[文化的な]行事があります。'}, 
+                        {en: 'mixed', ja: '混ざった', exEn: 'I have ___ feelings.', exJa: '私は複雑な([混ざった])感情を抱いています。'}, 
+                        {en: 'selection', ja: '選択', exEn: 'We have a good ___ of books.', exJa: '私たちは良い本の品揃え([選択])を持っています。'}, 
+                        {en: 'standard', ja: '基準', exEn: 'This is the ___ size.', exJa: 'これが[標準(基準)]サイズです。'}, 
+                        {en: 'list', ja: 'リスト', exEn: 'Make a shopping ___.', exJa: '買い物[リスト]を作りなさい。'}, 
+                        {en: 'forever', ja: '永遠に', exEn: 'I will love you ___.', exJa: '私はあなたを[永遠に]愛します。'}, 
+                        {en: 'path', ja: '小道', exEn: 'Walk along this ___.', exJa: 'この[小道]に沿って歩きなさい。'}, 
+                        {en: 'cleanup', ja: '掃除', exEn: 'We had a beach ___ day.', exJa: '私たちはビーチの[清掃(掃除)]日を設けました。'}, 
+                        {en: 'face', ja: '直面する', exEn: 'We have to ___ the problem.', exJa: '私たちは問題に[直面し]なければなりません。'}, 
+                        {en: 'built', ja: '建てられた', exEn: 'This house was ___ in 1990.', exJa: 'この家は1990年に[建てられました]。'}, 
+                        {en: 'climb', ja: '登る', exEn: 'I want to ___ Mt. Fuji.', exJa: '私は富士山に[登り]たいです。'}, 
+                        {en: 'seen', ja: '見られた', exEn: 'Have you ___ my dog?', exJa: '私の犬を[見]ませんでしたか。'}
                     ] },
                     { id: 'j2-ex', name: "Let's Read / Stage Activity 等", words: [
-                        {en: 'pay', ja: '支払う', exEn: 'I will ___ by credit card.', exJa: 'クレジットカードで支払います。'}, 
-                        {en: 'before', ja: '〜の前に', exEn: 'Wash your hands ___ dinner.', exJa: '夕食の前に手を洗いなさい。'}, 
-                        {en: 'better', ja: 'より良い', exEn: 'This is ___ than that.', exJa: 'これはあれよりも良いです。'}, 
-                        {en: 'wonder', ja: '〜かなと思う', exEn: 'I ___ who he is.', exJa: '彼は誰なのだろう(かなと思う)。'}, 
-                        {en: 'hope', ja: '望む', exEn: 'I ___ it will be sunny tomorrow.', exJa: '明日晴れることを望みます。'}, 
-                        {en: 'smile', ja: '微笑む', exEn: 'She gave me a big ___.', exJa: '彼女は私に大きな微笑みをくれました。'}, 
-                        {en: 'away', ja: '離れて', exEn: 'Go ___.', exJa: 'あっちへ行け(離れろ)。'}, 
-                        {en: 'sent', ja: '送った', exEn: 'I ___ you an email.', exJa: '私はあなたにメールを送りました。'}, 
-                        {en: 'woke', ja: '目覚めた', exEn: 'I ___ up early today.', exJa: '私は今日早く目覚めました。'}, 
-                        {en: 'afraid', ja: '恐れて', exEn: 'Don\'t be ___.', exJa: '恐れないで。'}, 
-                        {en: 'inside', ja: '内側に', exEn: 'It\'s raining, so let\'s stay ___.', exJa: '雨が降っているので、中にいましょう。'}, 
-                        {en: 'letter', ja: '手紙', exEn: 'I wrote a ___ to my grandma.', exJa: '祖母に手紙を書きました。'}, 
-                        {en: 'almost', ja: 'ほとんど', exEn: 'It\'s ___ noon.', exJa: 'もうほとんど正午です。'}, 
-                        {en: 'field', ja: '野原', exEn: 'We played soccer in the ___.', exJa: '私たちは野原でサッカーをしました。'}, 
-                        {en: 'return', ja: '戻る', exEn: 'I will ___ to Japan next year.', exJa: '来年日本に戻ります。'}, 
-                        {en: 'alone', ja: 'ひとりで', exEn: 'He traveled ___.', exJa: '彼は一人で旅行しました。'}, 
-                        {en: 'camp', ja: 'キャンプ', exEn: 'We went to a summer ___.', exJa: '私たちはサマーキャンプに行きました。'}
+                        {en: 'pay', ja: '支払う', exEn: 'I will ___ by credit card.', exJa: 'クレジットカードで[支払い]ます。'}, 
+                        {en: 'before', ja: '〜の前に', exEn: 'Wash your hands ___ dinner.', exJa: '夕食の[前に]手を洗いなさい。'}, 
+                        {en: 'better', ja: 'より良い', exEn: 'This is ___ than that.', exJa: 'これはあれよりも[良い]です。'}, 
+                        {en: 'wonder', ja: '〜かなと思う', exEn: 'I ___ who he is.', exJa: '彼は誰なのだろう([かなと思]う)。'}, 
+                        {en: 'hope', ja: '望む', exEn: 'I ___ it will be sunny tomorrow.', exJa: '明日晴れることを[望み]ます。'}, 
+                        {en: 'smile', ja: '微笑む', exEn: 'She gave me a big ___.', exJa: '彼女は私に大きな[微笑み]をくれました。'}, 
+                        {en: 'away', ja: '離れて', exEn: 'Go ___.', exJa: 'あっちへ行け([離れろ])。'}, 
+                        {en: 'sent', ja: '送った', exEn: 'I ___ you an email.', exJa: '私はあなたにメールを[送りました]。'}, 
+                        {en: 'woke', ja: '目覚めた', exEn: 'I ___ up early today.', exJa: '私は今日早く[目覚め]ました。'}, 
+                        {en: 'afraid', ja: '恐れて', exEn: 'Don\'t be ___.', exJa: '[恐れ]ないで。'}, 
+                        {en: 'inside', ja: '内側に', exEn: 'It\'s raining, so let\'s stay ___.', exJa: '雨が降っているので、[中に]いましょう。'}, 
+                        {en: 'letter', ja: '手紙', exEn: 'I wrote a ___ to my grandma.', exJa: '祖母に[手紙]を書きました。'}, 
+                        {en: 'almost', ja: 'ほとんど', exEn: 'It\'s ___ noon.', exJa: 'もう[ほとんど]正午です。'}, 
+                        {en: 'field', ja: '野原', exEn: 'We played soccer in the ___.', exJa: '私たちは[野原]でサッカーをしました。'}, 
+                        {en: 'return', ja: '戻る', exEn: 'I will ___ to Japan next year.', exJa: '来年日本に[戻り]ます。'}, 
+                        {en: 'alone', ja: 'ひとりで', exEn: 'He traveled ___.', exJa: '彼は[一人で]旅行しました。'}, 
+                        {en: 'camp', ja: 'キャンプ', exEn: 'We went to a summer ___.', exJa: '私たちはサマー[キャンプ]に行きました。'}
                     ] }
                 ]
             },
@@ -433,125 +459,125 @@
                 grade: '中学3年',
                 items: [
                     { id: 'j3-u0', name: 'Unit 0', words: [
-                        {en: 'musical', ja: 'ミュージカル', exEn: 'I like watching ___s.', exJa: '私はミュージカルを見るのが好きです。'}, 
-                        {en: 'finally', ja: 'ついに', exEn: 'We ___ arrived at the hotel.', exJa: '私たちはついにホテルに到着しました。'}, 
-                        {en: 'side', ja: '側面', exEn: 'Look at the other ___.', exJa: '反対の側面を見てください。'}, 
-                        {en: 'discover', ja: '発見する', exEn: 'They will ___ a new island.', exJa: '彼らは新しい島を発見するでしょう。'}, 
-                        {en: 'actor', ja: '俳優', exEn: 'He is a famous ___.', exJa: '彼は有名な俳優です。'}
+                        {en: 'musical', ja: 'ミュージカル', exEn: 'I like watching ___s.', exJa: '私は[ミュージカル]を見るのが好きです。'}, 
+                        {en: 'finally', ja: 'ついに', exEn: 'We ___ arrived at the hotel.', exJa: '私たちは[ついに]ホテルに到着しました。'}, 
+                        {en: 'side', ja: '側面', exEn: 'Look at the other ___.', exJa: '反対の[側面]を見てください。'}, 
+                        {en: 'discover', ja: '発見する', exEn: 'They will ___ a new island.', exJa: '彼らは新しい島を[発見する]でしょう。'}, 
+                        {en: 'actor', ja: '俳優', exEn: 'He is a famous ___.', exJa: '彼は有名な[俳優]です。'}
                     ] },
                     { id: 'j3-u1', name: 'Unit 1 (Read & Think含む)', words: [
-                        {en: 'match', ja: '試合', exEn: 'Did you win the tennis ___?', exJa: 'テニスの試合に勝ちましたか。'}, 
-                        {en: 'make', ja: '作る', exEn: 'Can you ___ a cake?', exJa: 'ケーキを作ることはできますか。'}, 
-                        {en: 'drawn', ja: '描かれた', exEn: 'This picture was ___ by him.', exJa: 'この絵は彼によって描かれました。'}, 
-                        {en: 'delicate', ja: '繊細な', exEn: 'This glass is very ___.', exJa: 'このグラスはとても繊細です。'}, 
-                        {en: 'adult', ja: '大人', exEn: 'This movie is for ___s.', exJa: 'この映画は大人向けです。'}, 
-                        {en: 'quality', ja: '質', exEn: 'This product has good ___.', exJa: 'この製品は質が良いです。'}, 
-                        {en: 'adventure', ja: '冒険', exEn: 'I like reading ___ stories.', exJa: '私は冒険物語を読むのが好きです。'}, 
-                        {en: 'global', ja: '世界的な', exEn: 'Global warming is a ___ problem.', exJa: '地球温暖化は世界的な問題です。'}, 
-                        {en: 'addition', ja: '追加', exEn: 'In ___, we need more water.', exJa: '加えて、私たちはもっと水が必要です。'}, 
-                        {en: 'drawing', ja: '描画', exEn: 'I am good at ___.', exJa: '私は絵を描くこと(描画)が得意です。'}, 
-                        {en: 'more', ja: 'より多く', exEn: 'I need ___ time.', exJa: '私はもっと多くの時間が必要です。'}, 
-                        {en: 'around', ja: '〜の周りに', exEn: 'We sat ___ the table.', exJa: '私たちはテーブルの周りに座りました。'}, 
-                        {en: 'said', ja: '言った', exEn: 'He ___ that he was busy.', exJa: '彼は忙しいと言いました。'}
+                        {en: 'match', ja: '試合', exEn: 'Did you win the tennis ___?', exJa: 'テニスの[試合]に勝ちましたか。'}, 
+                        {en: 'make', ja: '作る', exEn: 'Can you ___ a cake?', exJa: 'ケーキを[作る]ことはできますか。'}, 
+                        {en: 'drawn', ja: '描かれた', exEn: 'This picture was ___ by him.', exJa: 'この絵は彼によって[描かれ]ました。'}, 
+                        {en: 'delicate', ja: '繊細な', exEn: 'This glass is very ___.', exJa: 'このグラスはとても[繊細]です。'}, 
+                        {en: 'adult', ja: '大人', exEn: 'This movie is for ___s.', exJa: 'この映画は[大人]向けです。'}, 
+                        {en: 'quality', ja: '質', exEn: 'This product has good ___.', exJa: 'この製品は[質]が良いです。'}, 
+                        {en: 'adventure', ja: '冒険', exEn: 'I like reading ___ stories.', exJa: '私は[冒険]物語を読むのが好きです。'}, 
+                        {en: 'global', ja: '世界的な', exEn: 'Global warming is a ___ problem.', exJa: '地球温暖化は[世界的な]問題です。'}, 
+                        {en: 'addition', ja: '追加', exEn: 'In ___, we need more water.', exJa: '[加えて(追加で)]、私たちはもっと水が必要です。'}, 
+                        {en: 'drawing', ja: '描画', exEn: 'I am good at ___.', exJa: '私は絵を[描くこと(描画)]が得意です。'}, 
+                        {en: 'more', ja: 'より多く', exEn: 'I need ___ time.', exJa: '私は[もっと多くの]時間が必要です。'}, 
+                        {en: 'around', ja: '〜の周りに', exEn: 'We sat ___ the table.', exJa: '私たちはテーブルの[周りに]座りました。'}, 
+                        {en: 'said', ja: '言った', exEn: 'He ___ that he was busy.', exJa: '彼は忙しいと[言いました]。'}
                     ] },
                     { id: 'j3-u2', name: 'Unit 2 (Read & Think含む)', words: [
-                        {en: 'introduce', ja: '紹介する', exEn: 'Let me ___ my friend.', exJa: '私の友達を紹介させてください。'}, 
-                        {en: 'become', ja: 'なる', exEn: 'I want to ___ a teacher.', exJa: '私は先生になりたいです。'}, 
-                        {en: 'use', ja: '使う', exEn: 'May I ___ your phone?', exJa: 'あなたの電話を使ってもいいですか。'}, 
-                        {en: 'small', ja: '小さい', exEn: 'This shirt is too ___ for me.', exJa: 'このシャツは私には小さすぎます。'}, 
-                        {en: 'less', ja: 'より少なく', exEn: 'You should eat ___ sugar.', exJa: 'あなたは砂糖をより少なく食べるべきです。'}, 
-                        {en: 'company', ja: '会社', exEn: 'My father works for a big ___.', exJa: '私の父は大きな会社で働いています。'}, 
-                        {en: 'hour', ja: '時間', exEn: 'I waited for an ___.', exJa: '私は1時間待ちました。'}, 
-                        {en: 'popular', ja: '人気のある', exEn: 'This song is ___ among young people.', exJa: 'この歌は若者の間で人気があります。'}, 
-                        {en: 'impact', ja: '影響', exEn: 'The news had a big ___ on us.', exJa: 'そのニュースは私たちに大きな影響を与えました。'}, 
-                        {en: 'since', ja: '〜以来', exEn: 'I have lived here ___ 2010.', exJa: '私は2010年以来ここに住んでいます。'}, 
-                        {en: 'planet', ja: '惑星', exEn: 'Earth is a beautiful ___.', exJa: '地球は美しい惑星です。'}, 
-                        {en: 'worker', ja: '労働者', exEn: 'Many ___s are in the factory.', exJa: '工場には多くの労働者がいます。'}, 
-                        {en: 'fair', ja: '公平な', exEn: 'That is not ___.', exJa: 'それは公平ではありません。'}, 
-                        {en: 'prohibit', ja: '禁止する', exEn: 'Smoking is ___ed here.', exJa: 'ここでは喫煙は禁止されています。'}
+                        {en: 'introduce', ja: '紹介する', exEn: 'Let me ___ my friend.', exJa: '私の友達を[紹介させて]ください。'}, 
+                        {en: 'become', ja: 'なる', exEn: 'I want to ___ a teacher.', exJa: '私は先生に[なり]たいです。'}, 
+                        {en: 'use', ja: '使う', exEn: 'May I ___ your phone?', exJa: 'あなたの電話を[使って]もいいですか。'}, 
+                        {en: 'small', ja: '小さい', exEn: 'This shirt is too ___ for me.', exJa: 'このシャツは私には[小さ]すぎます。'}, 
+                        {en: 'less', ja: 'より少なく', exEn: 'You should eat ___ sugar.', exJa: 'あなたは砂糖を[より少なく]食べるべきです。'}, 
+                        {en: 'company', ja: '会社', exEn: 'My father works for a big ___.', exJa: '私の父は大きな[会社]で働いています。'}, 
+                        {en: 'hour', ja: '時間', exEn: 'I waited for an ___.', exJa: '私は1[時間]待ちました。'}, 
+                        {en: 'popular', ja: '人気のある', exEn: 'This song is ___ among young people.', exJa: 'この歌は若者の間で[人気があり]ます。'}, 
+                        {en: 'impact', ja: '影響', exEn: 'The news had a big ___ on us.', exJa: 'そのニュースは私たちに大きな[影響]を与えました。'}, 
+                        {en: 'since', ja: '〜以来', exEn: 'I have lived here ___ 2010.', exJa: '私は2010年[以来]ここに住んでいます。'}, 
+                        {en: 'planet', ja: '惑星', exEn: 'Earth is a beautiful ___.', exJa: '地球は美しい[惑星]です。'}, 
+                        {en: 'worker', ja: '労働者', exEn: 'Many ___s are in the factory.', exJa: '工場には多くの[労働者]がいます。'}, 
+                        {en: 'fair', ja: '公平な', exEn: 'That is not ___.', exJa: 'それは[公平]ではありません。'}, 
+                        {en: 'prohibit', ja: '禁止する', exEn: 'Smoking is ___ed here.', exJa: 'ここでは喫煙は[禁止され]ています。'}
                     ] },
                     { id: 'j3-u3', name: 'Unit 3 (Read & Think含む)', words: [
-                        {en: 'human', ja: '人間', exEn: 'We are all ___ beings.', exJa: '私たちは皆人間です。'}, 
-                        {en: 'change', ja: '変化', exEn: 'We need a big ___.', exJa: '私たちは大きな変化が必要です。'}, 
-                        {en: 'trouble', ja: 'トラブル', exEn: 'I am in ___ now.', exJa: '私は今トラブルに巻き込まれています。'}, 
-                        {en: 'article', ja: '記事', exEn: 'I read an interesting ___ in the newspaper.', exJa: '私は新聞で面白い記事を読みました。'}, 
-                        {en: 'heard', ja: '聞いた', exEn: 'Have you ___ the news?', exJa: 'そのニュースを聞きましたか。'}, 
-                        {en: 'century', ja: '世紀', exEn: 'We live in the 21st ___.', exJa: '私たちは21世紀に生きています。'}, 
-                        {en: 'end', ja: '終わり', exEn: 'This is the ___ of the story.', exJa: 'これが物語の終わりです。'}, 
-                        {en: 'help', ja: '助ける', exEn: 'Can you ___ me?', exJa: '私を助けてくれますか。'}, 
-                        {en: 'research', ja: '研究', exEn: 'He is doing ___ on space.', exJa: '彼は宇宙についての研究をしています。'}, 
-                        {en: 'continue', ja: '続ける', exEn: 'Please ___ your work.', exJa: '仕事を続けてください。'}, 
-                        {en: 'reach', ja: '到着する', exEn: 'We will ___ Tokyo soon.', exJa: '私たちはまもなく東京に到着します。'}, 
-                        {en: 'action', ja: '行動', exEn: 'We must take ___ now.', exJa: '私たちは今、行動を起こさなければなりません。'}
+                        {en: 'human', ja: '人間', exEn: 'We are all ___ beings.', exJa: '私たちは皆[人間]です。'}, 
+                        {en: 'change', ja: '変化', exEn: 'We need a big ___.', exJa: '私たちは大きな[変化]が必要です。'}, 
+                        {en: 'trouble', ja: 'トラブル', exEn: 'I am in ___ now.', exJa: '私は今[トラブル]に巻き込まれています。'}, 
+                        {en: 'article', ja: '記事', exEn: 'I read an interesting ___ in the newspaper.', exJa: '私は新聞で面白い[記事]を読みました。'}, 
+                        {en: 'heard', ja: '聞いた', exEn: 'Have you ___ the news?', exJa: 'そのニュースを[聞きました]か。'}, 
+                        {en: 'century', ja: '世紀', exEn: 'We live in the 21st ___.', exJa: '私たちは21[世紀]に生きています。'}, 
+                        {en: 'end', ja: '終わり', exEn: 'This is the ___ of the story.', exJa: 'これが物語の[終わり]です。'}, 
+                        {en: 'help', ja: '助ける', exEn: 'Can you ___ me?', exJa: '私を[助けて]くれますか。'}, 
+                        {en: 'research', ja: '研究', exEn: 'He is doing ___ on space.', exJa: '彼は宇宙についての[研究]をしています。'}, 
+                        {en: 'continue', ja: '続ける', exEn: 'Please ___ your work.', exJa: '仕事を[続けて]ください。'}, 
+                        {en: 'reach', ja: '到着する', exEn: 'We will ___ Tokyo soon.', exJa: '私たちはまもなく東京に[到着します]。'}, 
+                        {en: 'action', ja: '行動', exEn: 'We must take ___ now.', exJa: '私たちは今、[行動]を起こさなければなりません。'}
                     ] },
                     { id: 'j3-u4', name: 'Unit 4 (Read & Think含む)', words: [
-                        {en: 'call', ja: '呼ぶ', exEn: 'I will ___ you later.', exJa: '後で電話で呼びます(かけます)。'}, 
-                        {en: 'number', ja: '番号', exEn: 'What is your room ___?', exJa: 'あなたの部屋番号は何番ですか。'}, 
-                        {en: 'store', ja: '店', exEn: 'I bought this at the ___.', exJa: '私はこれをその店で買いました。'}, 
-                        {en: 'fire', ja: '火事', exEn: 'There was a big ___ last night.', exJa: '昨夜大きな火事がありました。'}, 
-                        {en: 'case', ja: '場合', exEn: 'In that ___, I will stay home.', exJa: 'その場合、私は家にいます。'}, 
-                        {en: 'news', ja: 'ニュース', exEn: 'Did you watch the ___?', exJa: 'ニュースを見ましたか。'}, 
-                        {en: 'corner', ja: '角', exEn: 'Turn left at the next ___.', exJa: '次の角を左に曲がってください。'}, 
-                        {en: 'sudden', ja: '突然の', exEn: 'There was a ___ change in the weather.', exJa: '天気の突然の変化がありました。'}, 
-                        {en: 'support', ja: '支持する', exEn: 'I will ___ your plan.', exJa: '私はあなたの計画を支持します。'}, 
-                        {en: 'building', ja: '建物', exEn: 'This is a very tall ___.', exJa: 'これはとても高い建物です。'}, 
-                        {en: 'sell', ja: '売る', exEn: 'Do you ___ stamps here?', exJa: 'ここで切手は売っていますか。'}, 
-                        {en: 'between', ja: '〜の間に', exEn: 'Kyoto is ___ Osaka and Shiga.', exJa: '京都は大阪と滋賀の間にあります。'}, 
-                        {en: 'rode', ja: '乗った (rideの過去形)', exEn: 'I ___ a horse in Hokkaido.', exJa: '私は北海道で馬に乗りました。'}, 
-                        {en: 'bridge', ja: '橋', exEn: 'We crossed the ___.', exJa: '私たちはその橋を渡りました。'}, 
-                        {en: 'caught', ja: '捕まえた (catchの過去形)', exEn: 'I ___ a cold yesterday.', exJa: '私は昨日風邪をひきました(捕まえました)。'}
+                        {en: 'call', ja: '呼ぶ', exEn: 'I will ___ you later.', exJa: '後で電話で[呼び(かけ)]ます。'}, 
+                        {en: 'number', ja: '番号', exEn: 'What is your room ___?', exJa: 'あなたの部屋[番号]は何番ですか。'}, 
+                        {en: 'store', ja: '店', exEn: 'I bought this at the ___.', exJa: '私はこれをその[店]で買いました。'}, 
+                        {en: 'fire', ja: '火事', exEn: 'There was a big ___ last night.', exJa: '昨夜大きな[火事]がありました。'}, 
+                        {en: 'case', ja: '場合', exEn: 'In that ___, I will stay home.', exJa: 'その[場合]、私は家にいます。'}, 
+                        {en: 'news', ja: 'ニュース', exEn: 'Did you watch the ___?', exJa: '[ニュース]を見ましたか。'}, 
+                        {en: 'corner', ja: '角', exEn: 'Turn left at the next ___.', exJa: '次の[角]を左に曲がってください。'}, 
+                        {en: 'sudden', ja: '突然の', exEn: 'There was a ___ change in the weather.', exJa: '天気の[突然の]変化がありました。'}, 
+                        {en: 'support', ja: '支持する', exEn: 'I will ___ your plan.', exJa: '私はあなたの計画を[支持し]ます。'}, 
+                        {en: 'building', ja: '建物', exEn: 'This is a very tall ___.', exJa: 'これはとても高い[建物]です。'}, 
+                        {en: 'sell', ja: '売る', exEn: 'Do you ___ stamps here?', exJa: 'ここで切手は[売って]いますか。'}, 
+                        {en: 'between', ja: '〜の間に', exEn: 'Kyoto is ___ Osaka and Shiga.', exJa: '京都は大阪と滋賀の[間に]あります。'}, 
+                        {en: 'rode', ja: '乗った (rideの過去形)', exEn: 'I ___ a horse in Hokkaido.', exJa: '私は北海道で馬に[乗りました]。'}, 
+                        {en: 'bridge', ja: '橋', exEn: 'We crossed the ___.', exJa: '私たちはその[橋]を渡りました。'}, 
+                        {en: 'caught', ja: '捕まえた (catchの過去形)', exEn: 'I ___ a cold yesterday.', exJa: '私は昨日風邪をひきました([捕まえました])。'}
                     ] },
                     { id: 'j3-u5', name: 'Unit 5 (Read & Think含む)', words: [
-                        {en: 'print', ja: '印刷する', exEn: 'Please ___ this document.', exJa: 'この書類を印刷してください。'}, 
-                        {en: 'note', ja: 'メモ', exEn: 'I left a ___ on the desk.', exJa: '私は机の上にメモを残しました。'}, 
-                        {en: 'greatly', ja: '大いに', exEn: 'His help ___ improved our project.', exJa: '彼の助けは私たちのプロジェクトを大いに向上させました。'}, 
-                        {en: 'national', ja: '国家の', exEn: 'This is a ___ park.', exJa: 'これは国立(国家の)公園です。'}, 
-                        {en: 'leader', ja: '指導者', exEn: 'He is a great ___.', exJa: '彼は偉大な指導者です。'}, 
-                        {en: 'image', ja: '画像', exEn: 'This ___ is beautiful.', exJa: 'この画像(イメージ)は美しいです。'}, 
-                        {en: 'person', ja: '人', exEn: 'He is a nice ___.', exJa: '彼はいい人です。'}, 
-                        {en: 'rule', ja: '規則', exEn: 'You must follow the ___s.', exJa: 'あなたは規則に従わなければなりません。'}, 
-                        {en: 'law', ja: '法律', exEn: 'We must obey the ___.', exJa: '私たちは法律を守らなければなりません。'}, 
-                        {en: 'stand', ja: '立つ', exEn: 'Please ___ up.', exJa: '立ち上がってください。'}, 
-                        {en: 'expensive', ja: '高価な', exEn: 'This watch is very ___.', exJa: 'この時計はとても高価です。'}, 
-                        {en: 'produce', ja: '生産する', exEn: 'This factory ___s cars.', exJa: 'この工場は車を生産します。'}, 
-                        {en: 'thousand', ja: '千', exEn: 'It costs about a ___ yen.', exJa: 'それは約1000円かかります。'}, 
-                        {en: 'factory', ja: '工場', exEn: 'He works in a car ___.', exJa: '彼は自動車工場で働いています。'}, 
-                        {en: 'export', ja: '輸出する', exEn: 'Japan ___s many cars.', exJa: '日本は多くの車を輸出します。'}, 
-                        {en: 'choice', ja: '選択', exEn: 'You have no ___.', exJa: 'あなたに選択の余地はありません。'}
+                        {en: 'print', ja: '印刷する', exEn: 'Please ___ this document.', exJa: 'この書類を[印刷して]ください。'}, 
+                        {en: 'note', ja: 'メモ', exEn: 'I left a ___ on the desk.', exJa: '私は机の上に[メモ]を残しました。'}, 
+                        {en: 'greatly', ja: '大いに', exEn: 'His help ___ improved our project.', exJa: '彼の助けは私たちのプロジェクトを[大いに]向上させました。'}, 
+                        {en: 'national', ja: '国家の', exEn: 'This is a ___ park.', exJa: 'これは国立([国家の])公園です。'}, 
+                        {en: 'leader', ja: '指導者', exEn: 'He is a great ___.', exJa: '彼は偉大な[指導者]です。'}, 
+                        {en: 'image', ja: '画像', exEn: 'This ___ is beautiful.', exJa: 'この[画像]は美しいです。'}, 
+                        {en: 'person', ja: '人', exEn: 'He is a nice ___.', exJa: '彼はいい[人]です。'}, 
+                        {en: 'rule', ja: '規則', exEn: 'You must follow the ___s.', exJa: 'あなたは[規則]に従わなければなりません。'}, 
+                        {en: 'law', ja: '法律', exEn: 'We must obey the ___.', exJa: '私たちは[法律]を守らなければなりません。'}, 
+                        {en: 'stand', ja: '立つ', exEn: 'Please ___ up.', exJa: '[立ち]上がってください。'}, 
+                        {en: 'expensive', ja: '高価な', exEn: 'This watch is very ___.', exJa: 'この時計はとても[高価]です。'}, 
+                        {en: 'produce', ja: '生産する', exEn: 'This factory ___s cars.', exJa: 'この工場は車を[生産し]ます。'}, 
+                        {en: 'thousand', ja: '千', exEn: 'It costs about a ___ yen.', exJa: 'それは約[1000]円かかります。'}, 
+                        {en: 'factory', ja: '工場', exEn: 'He works in a car ___.', exJa: '彼は自動車[工場]で働いています。'}, 
+                        {en: 'export', ja: '輸出する', exEn: 'Japan ___s many cars.', exJa: '日本は多くの車を[輸出します]。'}, 
+                        {en: 'choice', ja: '選択', exEn: 'You have no ___.', exJa: 'あなたに[選択]の余地はありません。'}
                     ] },
                     { id: 'j3-u6', name: 'Unit 6 (Read & Think含む)', words: [
-                        {en: 'run', ja: '走る', exEn: 'I ___ in the park every morning.', exJa: '私は毎朝公園を走ります。'}, 
-                        {en: 'wish', ja: '願う', exEn: 'I ___ you good luck.', exJa: 'あなたの幸運を願います。'}, 
-                        {en: 'felt', ja: '感じた', exEn: 'I ___ happy yesterday.', exJa: '私は昨日幸せに感じました。'}, 
-                        {en: 'abroad', ja: '外国へ', exEn: 'I want to study ___.', exJa: '私は外国へ留学したいです。'}, 
-                        {en: 'open', ja: '開く', exEn: 'Please ___ the door.', exJa: 'ドアを開けてください。'}, 
-                        {en: 'daughter', ja: '娘', exEn: 'She is my ___.', exJa: '彼女は私の娘です。'}, 
-                        {en: 'imagine', ja: '想像する', exEn: 'Can you ___ life without water?', exJa: '水のない生活を想像できますか。'}, 
-                        {en: 'son', ja: '息子', exEn: 'His ___ is three years old.', exJa: '彼の息子は3歳です。'}, 
-                        {en: 'another', ja: '別の', exEn: 'I\'ll have ___ cup of tea.', exJa: 'お茶を別のもう一杯いただきます。'}, 
-                        {en: 'ready', ja: '準備ができて', exEn: 'Are you ___?', exJa: '準備はいいですか。'}, 
-                        {en: 'through', ja: '〜を通って', exEn: 'We walked ___ the forest.', exJa: '私たちは森を通って歩きました。'}, 
-                        {en: 'most', ja: 'ほとんど', exEn: '___ people like music.', exJa: 'ほとんどの人は音楽が好きです。'}, 
-                        {en: 'sold', ja: '売った (sellの過去形)', exEn: 'I ___ my old car.', exJa: '私は古い車を売りました。'}
+                        {en: 'run', ja: '走る', exEn: 'I ___ in the park every morning.', exJa: '私は毎朝公園を[走ります]。'}, 
+                        {en: 'wish', ja: '願う', exEn: 'I ___ you good luck.', exJa: 'あなたの幸運を[願います]。'}, 
+                        {en: 'felt', ja: '感じた', exEn: 'I ___ happy yesterday.', exJa: '私は昨日幸せに[感じました]。'}, 
+                        {en: 'abroad', ja: '外国へ', exEn: 'I want to study ___.', exJa: '私は[外国へ]留学したいです。'}, 
+                        {en: 'open', ja: '開く', exEn: 'Please ___ the door.', exJa: 'ドアを[開けて]ください。'}, 
+                        {en: 'daughter', ja: '娘', exEn: 'She is my ___.', exJa: '彼女は私の[娘]です。'}, 
+                        {en: 'imagine', ja: '想像する', exEn: 'Can you ___ life without water?', exJa: '水のない生活を[想像でき]ますか。'}, 
+                        {en: 'son', ja: '息子', exEn: 'His ___ is three years old.', exJa: '彼の[息子]は3歳です。'}, 
+                        {en: 'another', ja: '別の', exEn: 'I\'ll have ___ cup of tea.', exJa: 'お茶を[別の(もう一杯)]いただきます。'}, 
+                        {en: 'ready', ja: '準備ができて', exEn: 'Are you ___?', exJa: '[準備はいい(できてい)]ですか。'}, 
+                        {en: 'through', ja: '〜を通って', exEn: 'We walked ___ the forest.', exJa: '私たちは森を[通って]歩きました。'}, 
+                        {en: 'most', ja: 'ほとんど', exEn: '___ people like music.', exJa: '[ほとんど]の人は音楽が好きです。'}, 
+                        {en: 'sold', ja: '売った (sellの過去形)', exEn: 'I ___ my old car.', exJa: '私は古い車を[売りました]。'}
                     ] },
                     { id: 'j3-ex', name: "Let's Read / Stage Activity 等", words: [
-                        {en: 'happen', ja: '起こる', exEn: 'What will ___ next?', exJa: '次に何が起こるでしょうか。'}, 
-                        {en: 'out', ja: '外へ', exEn: 'Let\'s go ___.', exJa: '外へ出ましょう。'}, 
-                        {en: 'cut', ja: '切る', exEn: 'Please ___ the paper.', exJa: '紙を切ってください。'}, 
-                        {en: 'wind', ja: '風', exEn: 'The ___ is strong today.', exJa: '今日は風が強いです。'}, 
-                        {en: 'power', ja: '力', exEn: 'Knowledge is ___.', exJa: '知識は力なり。'}, 
-                        {en: 'believe', ja: '信じる', exEn: 'I ___ in you.', exJa: '私はあなたを信じます。'}, 
-                        {en: 'fun', ja: '楽しい', exEn: 'Learning English is ___.', exJa: '英語を学ぶのは楽しいです。'}, 
-                        {en: 'line', ja: '線', exEn: 'Draw a straight ___.', exJa: '直線を引いてください。'}, 
-                        {en: 'outside', ja: '外側', exEn: 'It\'s cold ___.', exJa: '外側(屋外)は寒いです。'}, 
-                        {en: 'color', ja: '色', exEn: 'What ___ do you like?', exJa: '何色が好きですか。'}, 
-                        {en: 'piece', ja: '部分', exEn: 'I ate a ___ of cake.', exJa: '私はケーキを一部分(一切れ)食べました。'}, 
-                        {en: 'instead', ja: '代わりに', exEn: 'I will go ___.', exJa: '私が代わりに行きます。'}, 
-                        {en: 'fold', ja: '折る', exEn: 'Please ___ the paper in half.', exJa: '紙を半分に折ってください。'}, 
-                        {en: 'item', ja: '品物', exEn: 'This ___ is on sale.', exJa: 'この品物はセール中です。'}, 
-                        {en: 'cloth', ja: '布', exEn: 'Wipe the table with a ___.', exJa: '布でテーブルを拭いてください。'}, 
-                        {en: 'resource', ja: '資源', exEn: 'Water is a precious ___.', exJa: '水は貴重な資源です。'}, 
-                        {en: 'square', ja: '正方形', exEn: 'Draw a ___ on the paper.', exJa: '紙に正方形を描いてください。'}
+                        {en: 'happen', ja: '起こる', exEn: 'What will ___ next?', exJa: '次に何が[起こる]でしょうか。'}, 
+                        {en: 'out', ja: '外へ', exEn: 'Let\'s go ___.', exJa: '[外へ]出ましょう。'}, 
+                        {en: 'cut', ja: '切る', exEn: 'Please ___ the paper.', exJa: '紙を[切って]ください。'}, 
+                        {en: 'wind', ja: '風', exEn: 'The ___ is strong today.', exJa: '今日は[風]が強いです。'}, 
+                        {en: 'power', ja: '力', exEn: 'Knowledge is ___.', exJa: '知識は[力]なり。'}, 
+                        {en: 'believe', ja: '信じる', exEn: 'I ___ in you.', exJa: '私はあなたを[信じ]ます。'}, 
+                        {en: 'fun', ja: '楽しい', exEn: 'Learning English is ___.', exJa: '英語を学ぶのは[楽しい]です。'}, 
+                        {en: 'line', ja: '線', exEn: 'Draw a straight ___.', exJa: '直[線]を引いてください。'}, 
+                        {en: 'outside', ja: '外側', exEn: 'It\'s cold ___.', exJa: '[外側(屋外)]は寒いです。'}, 
+                        {en: 'color', ja: '色', exEn: 'What ___ do you like?', exJa: '何[色]が好きですか。'}, 
+                        {en: 'piece', ja: '部分', exEn: 'I ate a ___ of cake.', exJa: '私はケーキを[一部分(一切れ)]食べました。'}, 
+                        {en: 'instead', ja: '代わりに', exEn: 'I will go ___.', exJa: '私が[代わりに]行きます。'}, 
+                        {en: 'fold', ja: '折る', exEn: 'Please ___ the paper in half.', exJa: '紙を半分に[折って]ください。'}, 
+                        {en: 'item', ja: '品物', exEn: 'This ___ is on sale.', exJa: 'この[品物]はセール中です。'}, 
+                        {en: 'cloth', ja: '布', exEn: 'Wipe the table with a ___.', exJa: '[布]でテーブルを拭いてください。'}, 
+                        {en: 'resource', ja: '資源', exEn: 'Water is a precious ___.', exJa: '水は貴重な[資源]です。'}, 
+                        {en: 'square', ja: '正方形', exEn: 'Draw a ___ on the paper.', exJa: '紙に[正方形]を描いてください。'}
                     ] }
                 ]
             }
@@ -561,7 +587,7 @@
         function App() {
             const [selectedUnits, setSelectedUnits] = useState(['j1-u1']);
             const [count, setCount] = useState(10);
-            const [questionType, setQuestionType] = useState('random'); // 'enToJa', 'jaToEn', 'random', 'fillInTheBlank'
+            const [questionType, setQuestionType] = useState('randomWord'); // enToJa, jaToEn, fillInTheBlankEn, fillInTheBlankJa, randomWord, randomSentence
             const [problems, setProblems] = useState([]);
             const [showAnswers, setShowAnswers] = useState(false);
             const [error, setError] = useState('');
@@ -627,14 +653,17 @@
 
                 const newProblems = selectedWords.map(word => {
                     let type = questionType;
-                    if (type === 'random') {
-                        const types = ['enToJa', 'jaToEn', 'fillInTheBlank'];
-                        type = types[Math.floor(Math.random() * types.length)];
+                    
+                    // ランダムミックスの判定
+                    if (type === 'randomWord') {
+                        type = Math.random() > 0.5 ? 'enToJa' : 'jaToEn';
+                    } else if (type === 'randomSentence') {
+                        type = Math.random() > 0.5 ? 'fillInTheBlankEn' : 'fillInTheBlankJa';
                     }
 
-                    if (type === 'fillInTheBlank' && (!word.exEn || !word.exJa)) {
-                        // 例文がない単語が選ばれた場合は、英→日・日→英のどちらかにフォールバックする
-                        type = Math.random() > 0.5 ? 'enToJa' : 'jaToEn';
+                    // 例文がない単語が選ばれた場合のフォールバック（例文穴埋めの場合）
+                    if ((type === 'fillInTheBlankEn' || type === 'fillInTheBlankJa') && (!word.exEn || !word.exJa)) {
+                        type = type === 'fillInTheBlankEn' ? 'jaToEn' : 'enToJa'; 
                     }
 
                     return {
@@ -723,19 +752,21 @@
                                     {error && <p className="text-red-500 text-sm mt-3 font-bold">{error}</p>}
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2 print:grid-cols-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
                                     {/* 出題形式 */}
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">出題形式</label>
                                         <select 
                                             value={questionType} 
                                             onChange={(e) => setQuestionType(e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-3 outline-none transition-shadow font-medium"
+                                            className="w-full bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-3 outline-none transition-shadow font-medium text-sm"
                                         >
-                                            <option value="enToJa">英単語 → 日本語訳</option>
-                                            <option value="jaToEn">日本語訳 → 英単語</option>
-                                            <option value="fillInTheBlank">例文穴埋め (ヒント付き)</option>
-                                            <option value="random">ランダムにミックス出題</option>
+                                            <option value="enToJa">① 英単語 → 日本語訳</option>
+                                            <option value="jaToEn">② 日本語訳 → 英単語</option>
+                                            <option value="randomWord">③ 単語単独 ランダムミックス</option>
+                                            <option value="fillInTheBlankEn">④ 例文穴埋め (英単語を答える)</option>
+                                            <option value="fillInTheBlankJa">⑤ 例文穴埋め (日本語訳を答える)</option>
+                                            <option value="randomSentence">⑥ 例文穴埋め ランダムミックス</option>
                                         </select>
                                     </div>
 
@@ -745,14 +776,14 @@
                                         <select 
                                             value={count} 
                                             onChange={(e) => setCount(Number(e.target.value))}
-                                            className="w-full bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-3 outline-none transition-shadow font-medium"
+                                            className="w-full bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-3 outline-none transition-shadow font-medium text-sm"
                                         >
                                             <option value={10}>10問</option>
                                             <option value={20}>20問 (約10分)</option>
                                             <option value={30}>30問</option>
                                             <option value={50}>50問</option>
                                         </select>
-                                        <p className="text-xs text-gray-400 mt-2">※選択した範囲の単語数が少ない場合は、最大単語数で作成されます。</p>
+                                        <p className="text-[10px] text-gray-400 mt-2">※選択範囲の単語数が少ない場合は、最大単語数で作成されます。</p>
                                     </div>
                                 </div>
 
@@ -826,21 +857,25 @@
                             </div>
 
                             {problems.length > 0 ? (
-                                <div className="grid gap-x-8 sm:gap-x-12 md:gap-x-16 gap-y-8 sm:gap-y-10 grid-cols-1 md:grid-cols-2 print:grid-cols-2">
+                                <div className="grid gap-x-8 sm:gap-x-12 md:gap-x-16 gap-y-8 sm:gap-y-10 grid-cols-1 md:grid-cols-2 print-grid-2">
                                     {problems.map((p, i) => {
-                                        const isFillInTheBlank = p.type === 'fillInTheBlank';
+                                        const isEnToJa = p.type === 'enToJa';
+                                        const isJaToEn = p.type === 'jaToEn';
+                                        const isFillEn = p.type === 'fillInTheBlankEn';
+                                        const isFillJa = p.type === 'fillInTheBlankJa';
+
                                         return (
                                             <div key={i} className="flex gap-3 sm:gap-4 break-inside-avoid w-full">
                                                 <div className="font-bold text-base sm:text-lg text-gray-800 w-6 sm:w-8 shrink-0 text-right mt-0.5">({i + 1})</div>
                                                 
                                                 <div className="flex flex-col w-full">
-                                                    {isFillInTheBlank ? (
+                                                    {isFillEn && (
                                                         <div className="flex flex-col gap-1 w-full">
                                                             <div className="font-serif text-lg tracking-wide text-gray-900 leading-snug">
                                                                 {p.exEn}
                                                             </div>
                                                             <div className="text-sm text-gray-600 leading-snug">
-                                                                {p.exJa}
+                                                                {generateFullJa(p.exJa)}
                                                             </div>
                                                             <div className="flex items-end gap-3 mt-2">
                                                                 <div className="text-sm text-blue-700 font-bold shrink-0">【意味】 {p.ja}</div>
@@ -853,15 +888,36 @@
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    ) : (
+                                                    )}
+                                                    {isFillJa && (
+                                                        <div className="flex flex-col gap-1 w-full">
+                                                            <div className="font-serif text-lg tracking-wide text-gray-900 leading-snug">
+                                                                {generateFullEn(p.exEn, p.en)}
+                                                            </div>
+                                                            <div className="text-sm text-gray-600 leading-snug">
+                                                                {generateBlankJa(p.exJa)}
+                                                            </div>
+                                                            <div className="flex items-end gap-3 mt-2">
+                                                                <div className="text-sm text-blue-700 font-bold shrink-0 font-serif tracking-wide">【単語】 {p.en}</div>
+                                                                <div className="flex-1 border-b border-gray-400 relative h-6">
+                                                                    {showAnswers && (
+                                                                        <span className="absolute bottom-0 left-2 text-red-600 font-bold text-lg tracking-wide">
+                                                                            {p.ja}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {(isEnToJa || isJaToEn) && (
                                                         <div className="flex items-center w-full">
-                                                            <div className={`w-32 sm:w-40 shrink-0 text-base sm:text-lg font-medium text-gray-900 ${p.type === 'enToJa' ? 'font-serif tracking-wide' : ''}`}>
-                                                                {p.type === 'enToJa' ? p.en : p.ja}
+                                                            <div className={`w-32 sm:w-40 shrink-0 text-base sm:text-lg font-medium text-gray-900 ${isEnToJa ? 'font-serif tracking-wide' : ''}`}>
+                                                                {isEnToJa ? p.en : p.ja}
                                                             </div>
                                                             <div className="flex-1 border-b border-gray-400 relative h-8">
                                                                 {showAnswers && (
-                                                                    <span className={`absolute bottom-0 left-2 text-red-600 font-bold text-base sm:text-lg ${p.type === 'jaToEn' ? 'font-serif tracking-wide' : ''}`}>
-                                                                        {p.type === 'jaToEn' ? p.en : p.ja}
+                                                                    <span className={`absolute bottom-0 left-2 text-red-600 font-bold text-base sm:text-lg ${isJaToEn ? 'font-serif tracking-wide' : ''}`}>
+                                                                        {isJaToEn ? p.en : p.ja}
                                                                     </span>
                                                                 )}
                                                             </div>
